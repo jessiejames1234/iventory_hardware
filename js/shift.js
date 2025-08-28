@@ -15,16 +15,39 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 const displayShifts = async () => {
-  const res = await axios.get(`${baseApiUrl}/shift.php`, {
-    params: { operation: "getAllShifts" },
-  });
+  const div = document.getElementById("table-div");
 
-  if (res.status === 200) {
-    renderShiftTable(res.data);
-  } else {
-    alert("Failed to load shift records.");
+  // Show loading state
+  div.innerHTML = `
+    <div class="d-flex justify-content-center align-items-center p-5 gap-2">
+      <div class="spinner-border text-primary" role="status"></div>
+      <span class="fw-semibold">Loading shifts...</span>
+    </div>
+  `;
+
+  try {
+    const res = await axios.get(`${baseApiUrl}/shift.php`, {
+      params: { operation: "getAllShifts" },
+    });
+
+    if (res.status === 200) {
+      // Delay to make loading feel smooth
+      setTimeout(() => {
+        if (Array.isArray(res.data) && res.data.length) {
+          renderShiftTable(res.data);
+        } else {
+          div.innerHTML = `<div class="alert alert-warning m-0">No shift data found.</div>`;
+        }
+      }, 1000);
+    } else {
+      div.innerHTML = `<div class="alert alert-danger">Failed to load shift records.</div>`;
+    }
+  } catch (err) {
+    console.error("Shift Display Error:", err);
+    div.innerHTML = `<div class="alert alert-danger">An unexpected error occurred while loading shifts.</div>`;
   }
 };
+
 
 const renderShiftTable = (shifts) => {
   const div = document.getElementById("table-div");

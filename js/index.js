@@ -41,6 +41,7 @@ const renderProductTable = (products) => {
   products.forEach(p => {
     const row = document.createElement("tr");
     row.innerHTML = `
+      <td>${p.product_id}</td>
       <td>${p.name}</td>
       <td>${p.price}</td>
       <td>${p.category}</td>

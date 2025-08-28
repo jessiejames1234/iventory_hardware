@@ -150,8 +150,8 @@ body.modal-open {
     }
     .btn-primary:hover,
     .btn-primary:focus {
-      background-color: #1d4ed8;
-      border-color: #1d4ed8;
+      background-color: #27479f;
+      border-color: #162756;
     }
 
     .table-responsive {
@@ -221,10 +221,10 @@ body.modal-open {
 
 #btn-add-product:hover,
 #btn-add-product:focus {
-  background-color: #2563eb;
+  background-color: #253c6d;
   color: white;
   transform: translateX(6px);
-  box-shadow: 0 2px 8px rgb(37 99 235 / 0.3);
+  box-shadow: 0 2px 8px rgba(27, 49, 97, 0.3);
 }
 
 #btn-add-product .bi-plus-circle {
@@ -266,7 +266,7 @@ body {
 /* Sidebar hover glow */
 .sidebar a:hover,
 .sidebar summary:hover {
-  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.5);
+  box-shadow: 0 4px 15px rgba(40, 59, 99, 0.5);
   transform: translateX(8px) scale(1.02);
 }
 
@@ -338,3 +338,7 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background-color: #3b82f6;
 }
+
+
+
+

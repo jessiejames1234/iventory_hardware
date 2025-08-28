@@ -1,0 +1,47 @@
+      <a href="dashboard.html"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a href="product_management.html"><i class="bi bi-card-list"></i>Products</a>
+            <a href="attributes.html"><i class="bi bi-card-list"></i>attributes</a>
+
+      <details>
+        <summary><i class="bi bi-stack"></i> Inventory</summary>
+        <div class="submenu">
+        <a href="current_quantity.html"><i class="bi bi-box"></i> store Inventory</a>
+        <a href="warehouse.html"><i class="bi bi-dash-circle"></i>  Warehouse</a>
+        <a href="stock_out.html"><i class="bi bi-dash-circle"></i> Stock Transfer</a>
+        <a href="stock_archieve_admin.html"><i class="bi bi-dash-circle"></i>Stock History</a>
+
+        </div>
+      </details>
+      <details>
+        <summary><i class="bi bi-cash"></i> Sales</summary>
+        <div class="submenu">
+            
+                    <a href="Terminal_forPOS.html"><i class="bi bi-receipt"></i>POS Terminal</a>
+
+
+          <a href="/sales/new"><i class="bi bi-receipt"></i> New Sale (POS)</a>
+          <a href="/sales/history"><i class="bi bi-clock-history"></i> Sales History</a>
+        </div>
+      </details>
+      <details>
+        <summary><i class="bi bi-arrow-repeat"></i> Returns</summary>
+        <div class="submenu">
+          <a href="/returns/sales"><i class="bi bi-arrow-counterclockwise"></i> Sales Returns</a>
+          <a href="purchase_return.html"><i class="bi bi-arrow-return-left"></i> Purchase Returns</a>
+        </div>
+      </details>
+      <details>
+        <summary><i class="bi bi-truck"></i> Suppliers</summary>
+        <div class="submenu">
+          <a href="assisgn_supplier.html"><i class="bi bi-person-lines-fill"></i> Supplier List</a>
+          <a href="supplier_management.html"><i class="bi bi-person-plus"></i> Add Supplier</a>
+        </div>
+      </details>
+      <details>
+        <summary><i class="bi bi-person-check-fill"></i> Staff</summary>
+        <div class="submenu">
+          <a href="staff_management.html"><i class="bi bi-person"></i> Staff List</a>
+          <a href="shift_records.html"><i class="bi bi-clock"></i> Shift Records</a>
+        </div>
+      </details>
+      <a href="/reports"><i class="bi bi-bar-chart-line"></i> Reports</a>

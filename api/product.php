@@ -5,24 +5,28 @@ include "connection-pdo.php";
 
 class Product {
 
-    function getProducts() {
-        include "connection-pdo.php";
-        $sql = "SELECT 
-                    p.product_id,
-                    p.product_name AS name,
-                    p.selling_price AS price,
-                    p.quantity,
-                    p.is_active,
-                    c.name AS category,
-                    b.name AS brand
-                FROM product p
-                LEFT JOIN category c ON p.category_id = c.category_id
-                LEFT JOIN brand b    ON p.brand_id    = b.brand_id
-                ORDER BY p.product_id DESC";
-        $stmt = $conn->prepare($sql);
-        $stmt->execute();
-        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
-    }
+function getProducts() {
+    include "connection-pdo.php";
+    $sql = "SELECT 
+                p.product_id,
+                p.product_name AS name,
+                p.model,
+                p.selling_price AS price,
+                p.quantity,
+                p.is_active,
+                c.name AS category,
+                b.name AS brand,
+                u.name AS unit
+            FROM product p
+            LEFT JOIN category c ON p.category_id = c.category_id
+            LEFT JOIN brand b    ON p.brand_id    = b.brand_id
+            LEFT JOIN unit_tbl u ON p.unit_id    = u.unit_id
+            ORDER BY p.product_id DESC";
+    $stmt = $conn->prepare($sql);
+    $stmt->execute();
+    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+}
+
 
 function getProduct($id) {
     include "connection-pdo.php";
@@ -244,6 +248,29 @@ function updateProduct($json) {
         $stmt->execute();
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
+    function getSuppliers() {
+    include "connection-pdo.php";
+    $stmt = $conn->prepare("SELECT supplier_id AS id, name FROM supplier WHERE is_active = 1 ORDER BY name");
+    $stmt->execute();
+    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+}
+
+function getWarehouses() {
+    include "connection-pdo.php";
+
+    // Only return actual warehouses, exclude anything that might look like "Main Store"
+    $stmt = $conn->prepare("
+        SELECT warehouse_id AS id, warehouse_name AS name
+        FROM warehouse
+        WHERE warehouse_name NOT LIKE '%store%'
+        ORDER BY warehouse_name
+    ");
+    $stmt->execute();
+
+    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+}
+
+
 }
 
 $product = new Product();
@@ -259,6 +286,8 @@ switch ($operation) {
     case "getCategories":$product->getCategories(); break;
     case "getBrands":    $product->getBrands(); break;
     case "getUnits":     $product->getUnits(); break;
+        case "getSuppliers": $product->getSuppliers(); break;
+    case "getWarehouses": $product->getWarehouses(); break;
     default: echo json_encode(["status"=>"error","message"=>"Invalid operation"]);
 }
 ?>

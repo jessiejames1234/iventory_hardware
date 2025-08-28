@@ -1,30 +1,64 @@
-import { insertSupplierModal } from "../modules/insert_supplier.js";
-import { viewSupplierModal } from "../modules/view_supplier.js";
-import { updateSupplierModal } from "../modules/update_supplier.js";
+  import { insertSupplierModal,viewSupplierModal,updateSupplierModal } from "./modules/model_supplier.js";
 
-const baseApiUrl = "http://localhost/hardware/api";
-sessionStorage.setItem("baseAPIUrl", baseApiUrl);
+  import { checkAuth, logout } from "./auth.js";
 
-document.addEventListener("DOMContentLoaded", () => {
-  displaySuppliers();
+  const user = checkAuth(); // 🔐 Redirects if not logged in
+  const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || "http://localhost/hardware/api";
+  sessionStorage.setItem("baseAPIUrl", baseApiUrl);
 
-  const addBtn = document.getElementById("btn-add-supplier");
-  if (addBtn) {
-    addBtn.addEventListener("click", () => {
-      insertSupplierModal(displaySuppliers);
-    });
-  }
-});
+  document.addEventListener("DOMContentLoaded", () => {
+      // 👤 Display logged-in user
+      document.getElementById("logged-user").textContent = user.name;
+    
+      // 🚪 Logout
+      document.getElementById("btn-logout").addEventListener("click", logout);
+    
+    displaySuppliers();
 
-const displaySuppliers = async () => {
-  const response = await axios.get(`${baseApiUrl}/suppliers.php`, {
-    params: { operation: "getAllSuppliers" },
+    const addBtn = document.getElementById("btn-add-supplier");
+    if (addBtn) {
+      addBtn.addEventListener("click", () => {
+        insertSupplierModal(displaySuppliers);
+      });
+    }
   });
 
-  if (response.status === 200) {
-    displaySuppliersTable(response.data);
-  } else {
-    alert("Error fetching suppliers!");
+const displaySuppliers = async () => {
+  const tableDiv = document.getElementById("supplier-table-div");
+  if (!tableDiv) return;
+
+  // 🔄 Show loading spinner
+  tableDiv.innerHTML = `
+    <div class="d-flex justify-content-center align-items-center p-5">
+      <div class="spinner-border text-primary me-2" role="status"></div>
+      <span class="fw-semibold">Loading suppliers...</span>
+    </div>
+  `;
+
+  try {
+    const response = await axios.get(`${baseApiUrl}/suppliers.php`, {
+      params: { operation: "getAllSuppliers" },
+    });
+
+    setTimeout(() => {
+      if (response.status === 200 && Array.isArray(response.data) && response.data.length) {
+        displaySuppliersTable(response.data);
+      } else {
+        tableDiv.innerHTML = `
+          <div class="alert alert-warning m-0">
+            No supplier data found.
+          </div>
+        `;
+      }
+    }, 1000); // smooth delay for transition
+
+  } catch (err) {
+    console.error(err);
+    tableDiv.innerHTML = `
+      <div class="alert alert-danger m-0">
+        Error loading suppliers!
+      </div>
+    `;
   }
 };
 
@@ -35,21 +69,21 @@ const displaySuppliersTable = (suppliers) => {
   const table = document.createElement("table");
   table.classList.add("table", "table-hover", "table-striped", "table-sm");
 
-  const thead = document.createElement("thead");
-  thead.innerHTML = `
-    <tr>
-      <th>ID</th>
-      <th>NAME</th>
-      <th>COMPANY</th>
-      <th>CONTACT</th>
-      <th>EMAIL</th>
-      <th>ADDRESS</th>
-      <th>NOTES</th>
-      <th>STATUS</th>
-      <th>ACTION</th>
-    </tr>
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>NAME</th>
+        <th>COMPANY</th>
+        <th>CONTACT</th>
+        <th>EMAIL</th>
+        <th>ADDRESS</th>
+        <th>NOTES</th>
+        <th>STATUS</th>
+        <th>ACTION</th>
+      </tr>
+    </thead>
   `;
-  table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
 
@@ -70,7 +104,6 @@ const displaySuppliersTable = (suppliers) => {
         <button type='button' class='btn btn-danger btn-sm btn-delete'>Delete</button>
       </td>
     `;
-    tbody.appendChild(row);
 
     // View
     row.querySelector(".btn-view").addEventListener("click", () => {
@@ -86,6 +119,8 @@ const displaySuppliersTable = (suppliers) => {
     row.querySelector(".btn-delete").addEventListener("click", () => {
       deleteSupplier(supplier.supplier_id);
     });
+
+    tbody.appendChild(row);
   });
 
   table.appendChild(tbody);
@@ -99,12 +134,16 @@ const deleteSupplier = async (supplierId) => {
   formData.append("operation", "deleteSupplier");
   formData.append("json", JSON.stringify({ supplierId }));
 
-  const response = await axios.post(`${baseApiUrl}/suppliers.php`, formData);
-
-  if (response.data == 1) {
-    displaySuppliers();
-    alert("Supplier deleted successfully!");
-  } else {
+  try {
+    const response = await axios.post(`${baseApiUrl}/suppliers.php`, formData);
+    if (response.data == 1) {
+      displaySuppliers();
+      alert("Supplier deleted successfully!");
+    } else {
+      alert("Error deleting supplier!");
+    }
+  } catch (err) {
+    console.error(err);
     alert("Error deleting supplier!");
   }
 };

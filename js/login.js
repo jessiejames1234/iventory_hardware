@@ -12,27 +12,34 @@ window.login = async function () {
 
   try {
     const res = await axios.post(`${baseApiUrl}/login.php`, { username, password });
+    const data = res.data;
 
-    if (res.data.status === "success") {
+    if (data.status === "success") {
       // Store user info
-        sessionStorage.setItem("user", JSON.stringify({
-        user_id: res.data.user_id,
-        staff_id: res.data.staff_id,
-        name: res.data.name,
-        role: res.data.role
-        }));
+      sessionStorage.setItem("user", JSON.stringify({
+        user_id: data.user_id,
+        staff_id: data.staff_id,
+        name: data.name,
+        role: data.role,
+        assigned_warehouse_id: data.assigned_warehouse_id || null
+      }));
 
-
-      // role
-      if (res.data.role === "admin") {
-        window.location.href = "dashboard/staff_management.html";
-      } else if (res.data.role === "staff") {
-        window.location.href = "dashboard/pos.html";
-      } else {
-        errorDiv.textContent = "Invalid role assigned.";
+      // Redirect by role
+      switch (data.role) {
+        case "admin":
+          window.location.href = "html/product_management.html";
+          break;
+        case "cashier":
+          window.location.href = "html/POS.html";
+          break;
+        case "warehouse_manager":
+          window.location.href = "html/warehouse_management.html";
+          break;
+        default:
+          errorDiv.textContent = "Invalid role assigned.";
       }
     } else {
-      errorDiv.textContent = res.data.message;
+      errorDiv.textContent = data.message;
     }
   } catch (err) {
     errorDiv.textContent = "Something went wrong.";

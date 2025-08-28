@@ -7,13 +7,27 @@ include "connection-pdo.php";
 $data = json_decode(file_get_contents("php://input"), true);
 $staffId = $data['staff_id'] ?? 0;
 
-$sql = "UPDATE shift SET end_time = NOW()
-       WHERE staff_id = :id AND end_time IS NULL
+if (!$staffId) {
+    echo json_encode(["status" => "error", "message" => "Missing staff_id"]);
+    exit;
+}
 
-        ORDER BY shift_id DESC LIMIT 1";
-
+// ✅ Update only the latest open shift
+$sql = "UPDATE shift 
+        SET end_time = NOW() 
+        WHERE shift_id = (
+            SELECT s.shift_id 
+            FROM shift s
+            WHERE s.staff_id = :id AND s.end_time IS NULL
+            ORDER BY s.shift_id DESC
+            LIMIT 1
+        )";
 
 $stmt = $conn->prepare($sql);
-$stmt->execute([":id" => $staffId]);
+$success = $stmt->execute([":id" => $staffId]);
 
-echo json_encode(["status" => "logged_out"]);
+if ($success) {
+    echo json_encode(["status" => "logged_out"]);
+} else {
+    echo json_encode(["status" => "error", "message" => "Logout failed"]);
+}

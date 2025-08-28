@@ -1,90 +1,165 @@
 <?php
-header('Content-Type: application/json');
+header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
 
+include "connection-pdo.php";
+
 class StockIn {
-    
-    // Get all stock records
-    function getAllStock() {
-        include "connection-pdo.php";
-        $sql = "SELECT si.stockin_id, p.product_name, s.name AS supplier_name, 
-                       si.quantity, si.remarks, si.date_received, st.name AS added_by
-                FROM stockin si
-                INNER JOIN product_supplier ps ON si.product_supplier_id = ps.product_supplier_id
-                INNER JOIN product p ON ps.product_id = p.product_id
-                INNER JOIN supplier s ON ps.supplier_id = s.supplier_id
-                LEFT JOIN staff st ON si.added_by_staff = st.staff_id
-                ORDER BY si.date_received DESC";
-        $stmt = $conn->prepare($sql);
+    private $conn;
+
+    public function __construct($db) {
+        $this->conn = $db;
+    }
+
+    // 🔹 Get stock-in records (filtered by role/warehouse)
+    public function getAllStockIn($warehouseId = null, $role = null) {
+$sql = "SELECT si.*, p.product_name, w.warehouse_name, s.name AS staff_name
+        FROM stock_in si
+        INNER JOIN product p ON si.product_id = p.product_id
+        INNER JOIN warehouse w ON si.warehouse_id = w.warehouse_id
+        LEFT JOIN staff s ON si.received_by = s.staff_id";
+
+
+        if ($role === "warehouse_manager" && $warehouseId) {
+            $sql .= " WHERE si.warehouse_id = :wid";
+        }
+
+$sql .= " ORDER BY si.date_received DESC";
+        $stmt = $this->conn->prepare($sql);
+
+        if ($role === "warehouse_manager" && $warehouseId) {
+            $stmt->bindParam(":wid", $warehouseId, PDO::PARAM_INT);
+        }
+
         $stmt->execute();
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
-    // Insert new stock
-function insertStock($json) {
-    include "connection-pdo.php";
-    $data = json_decode($json, true);
+    // 🔹 Insert stock-in (only for assigned warehouse)
+    public function insertStockIn($json, $userRole, $assignedWarehouseId) {
+        $data = json_decode($json, true);
 
-    try {
-        $conn->beginTransaction();
-
-        // Insert into stockin
-        $sql = "INSERT INTO stockin(product_supplier_id, quantity, remarks, added_by_staff)
-                VALUES(:productSupplierId, :quantity, :remarks, :addedByStaff)";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(":productSupplierId", $data['productSupplierId']);
-        $stmt->bindParam(":quantity", $data['quantity']);
-        $stmt->bindParam(":remarks", $data['remarks']);
-        $stmt->bindParam(":addedByStaff", $data['addedByStaff']);
-        $stmt->execute();
-
-        // Get the product_id from product_supplier
-        $sql2 = "SELECT product_id FROM product_supplier WHERE product_supplier_id = :psId";
-        $stmt2 = $conn->prepare($sql2);
-        $stmt2->bindParam(":psId", $data['productSupplierId']);
-        $stmt2->execute();
-        $product = $stmt2->fetch(PDO::FETCH_ASSOC);
-
-        if ($product) {
-            // Update product quantity
-            $sql3 = "UPDATE product SET quantity = quantity + :qty WHERE product_id = :productId";
-            $stmt3 = $conn->prepare($sql3);
-            $stmt3->bindParam(":qty", $data['quantity']);
-            $stmt3->bindParam(":productId", $product['product_id']);
-            $stmt3->execute();
+        if ($userRole !== "warehouse_manager") {
+            echo json_encode(["status" => "error", "message" => "Only warehouse managers can stock in"]);
+            return;
         }
 
-        $conn->commit();
-        echo json_encode(1);
+        // force warehouse_id = assigned_warehouse_id
+        $warehouseId = $assignedWarehouseId;
 
-    } catch (Exception $e) {
-        $conn->rollBack();
-        echo json_encode(0);
+$sql = "INSERT INTO stock_in (product_id, supplier_id, warehouse_id, quantity, received_by, status)
+        VALUES (:productId, :supplierId, :warehouseId, :quantity, :staffId, 'delivered')";
+$stmt = $this->conn->prepare($sql);
+$stmt->execute([
+    ":productId" => $data['productId'],
+    ":supplierId" => $data['supplierId'],
+    ":warehouseId" => $warehouseId, // forced to assigned warehouse
+    ":quantity" => $data['quantity'],
+    ":staffId" => $data['staffId']
+]);
+
+
+        // ✅ Also update inventory table
+        $sql = "INSERT INTO inventory (product_id, warehouse_id, quantity)
+                VALUES (:pid, :wid, :qty)
+                ON DUPLICATE KEY UPDATE quantity = quantity + :qty";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([
+            ":pid" => $data['productId'],
+            ":wid" => $warehouseId,
+            ":qty" => $data['quantity']
+        ]);
+
+        echo json_encode(["status" => "success"]);
+    }
+
+    public function getSuppliersByProduct($productId) {
+$sql = "SELECT s.supplier_id, s.name AS supplier_name
+        FROM product_supplier ps
+        INNER JOIN supplier s ON ps.supplier_id = s.supplier_id
+        WHERE ps.product_id = :pid";
+
+    $stmt = $this->conn->prepare($sql);
+    $stmt->execute([":pid" => $productId]);
+    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+}
+public function updateStatus($json) {
+    $data = json_decode($json, true);
+    $stockInId = $data['stockInId'];
+    $status    = $data['status'];
+
+    // ✅ Update status
+    $sql = "UPDATE stock_in SET status = :status WHERE stock_in_id = :sid";
+    $stmt = $this->conn->prepare($sql);
+    $stmt->execute([":status" => $status, ":sid" => $stockInId]);
+
+    // ✅ If completing, update stock
+    if ($status === "completed") {
+        $sql = "SELECT product_id, warehouse_id, quantity 
+                FROM stock_in 
+                WHERE stock_in_id = :sid";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([":sid" => $stockInId]);
+        $stockIn = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($stockIn) {
+            $pid  = $stockIn['product_id'];
+            $wid  = $stockIn['warehouse_id'];
+            $qty  = $stockIn['quantity'];
+
+            // ✅ update warehouse inventory
+            $sql = "INSERT INTO inventory (warehouse_id, product_id, quantity)
+                    VALUES (:wid, :pid, :qty)
+                    ON DUPLICATE KEY UPDATE quantity = quantity + :qty";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute([":wid" => $wid, ":pid" => $pid, ":qty" => $qty]);
+
+            // ✅ update global product stock
+            $sql = "UPDATE product 
+                    SET quantity = quantity + :qty 
+                    WHERE product_id = :pid";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute([":qty" => $qty, ":pid" => $pid]);
+        }
+    }
+
+    echo json_encode(["status" => "success"]);
+}
+    // 🔹 Get all products
+    public function getAllProducts() {
+        $sql = "SELECT product_id, product_name FROM product ORDER BY product_name ASC";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute();
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 }
 
-}
+$stockIn = new StockIn($conn);
 
-// Handle requests
-if ($_SERVER['REQUEST_METHOD'] == 'GET') {
-    $operation = $_GET['operation'] ?? "";
-    $json = $_GET['json'] ?? "";
-} else {
-    $operation = $_POST['operation'] ?? "";
-    $json = $_POST['json'] ?? "";
-}
+$operation = $_POST['operation'] ?? $_GET['operation'] ?? '';
+$json      = $_POST['json'] ?? $_GET['json'] ?? '';
 
-$stock = new StockIn();
-
-switch($operation) {
-    case "getAllStock":
-        $stock->getAllStock();
+switch ($operation) {
+    case "getAllStockIn":
+        $role = $_POST['role'] ?? $_GET['role'] ?? '';
+        $wid  = $_POST['warehouse_id'] ?? $_GET['warehouse_id'] ?? null;
+        $stockIn->getAllStockIn($wid, $role);
         break;
-    case "insertStock":
-        $stock->insertStock($json);
+    case "insertStockIn":
+        $role = $_POST['role'] ?? $_GET['role'] ?? '';
+        $assignedWarehouseId = $_POST['assigned_warehouse_id'] ?? $_GET['assigned_warehouse_id'] ?? null;
+        $stockIn->insertStockIn($json, $role, $assignedWarehouseId);
+        break;
+    case "getSuppliersByProduct":
+    $pid = $_GET['product_id'] ?? 0;
+    $stockIn->getSuppliersByProduct($pid);
+    break;
+case "updateStatus":
+    $stockIn->updateStatus($_POST['json'] ?? $_GET['json'] ?? '');
+    break;
+    case "getAllProducts":
+        $StockIn->getAllProducts();
         break;
     default:
-        echo json_encode(["error" => "Invalid operation"]);
-        break;
+        echo json_encode(["status" => "error", "message" => "Invalid operation"]);
 }
-?>

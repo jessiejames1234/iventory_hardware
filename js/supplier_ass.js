@@ -1,31 +1,61 @@
-import { updateModal } from "../modules/supplier_ass_modal.js";
+import { updateModal } from "./modules/model_supplier.js";
 
-const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || "http://localhost/hardware/api";
+  import { checkAuth, logout } from "./auth.js";
+
+  const user = checkAuth(); // 🔐 Redirects if not logged in
+  const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || "http://localhost/hardware/api";
+  sessionStorage.setItem("baseAPIUrl", baseApiUrl);
 
 document.addEventListener("DOMContentLoaded", () => {
+
+          // 👤 Display logged-in user
+          document.getElementById("logged-user").textContent = user.name;
+        
+          // 🚪 Logout
+          document.getElementById("btn-logout").addEventListener("click", logout);
     displayAssignments();
 
     document.getElementById("btn-assign-supplier").addEventListener("click", () => {
-        openInsertModal();
+        updateModal();
     });
 });
 
 const displayAssignments = async () => {
+    const div = document.getElementById("supplier-table-div");
+    if (!div) return;
+
+    // 🔄 Show loading spinner
+    div.innerHTML = `
+        <div class="d-flex justify-content-center align-items-center p-5">
+            <div class="spinner-border text-primary me-2" role="status"></div>
+            <span class="fw-semibold">Loading assignments...</span>
+        </div>
+    `;
+
     try {
-        // ✅ Correct endpoint for product-supplier assignments
-const response = await axios.get(`${baseApiUrl}/supplier_ass.php`, {
-    params: { operation: "getAllAssignments" }
-});
+        const response = await axios.get(`${baseApiUrl}/supplier_ass.php`, {
+            params: { operation: "getAllAssignments" }
+        });
 
+        setTimeout(() => {
+            if (Array.isArray(response.data) && response.data.length) {
+                renderTable(response.data);
+            } else {
+                div.innerHTML = `
+                    <div class="alert alert-warning m-0">
+                        No assignment data found.
+                    </div>
+                `;
+            }
+        }, 1000); // Smooth delay
 
-        if (Array.isArray(response.data)) {
-            renderTable(response.data);
-        } else {
-            alert("No assignment data found.");
-        }
     } catch (err) {
         console.error(err);
-        alert("Error loading data!");
+        div.innerHTML = `
+            <div class="alert alert-danger m-0">
+                Error loading data!
+            </div>
+        `;
     }
 };
 
@@ -73,25 +103,4 @@ const renderTable = (data) => {
 
     table.appendChild(tbody);
     div.appendChild(table);
-};
-
-const deleteAssignment = async (id) => {
-    if (!confirm("Are you sure you want to delete this assignment?")) return;
-
-    const formData = new FormData();
-    formData.append("operation", "deleteAssignment");
-    formData.append("json", JSON.stringify({ id }));
-
-    const response = await axios.post(`${baseApiUrl}/product_supplier.php`, formData);
-
-    if (response.data == 1) {
-        alert("Deleted successfully!");
-        displayAssignments();
-    } else {
-        alert("Error deleting record!");
-    }
-};
-
-const openInsertModal = () => {
-    updateModal(null, displayAssignments); // null = insert mode
 };
