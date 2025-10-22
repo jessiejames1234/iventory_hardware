@@ -15,8 +15,12 @@
   <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
-<script type="module" src="../js/stock_transfer_archive.js"></script>
+<script type="module" src="../js/stock_transfer_archive_manager.js"></script>
+<!-- SweetAlert2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
 
+<!-- SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
 <!-- Mobile Navbar -->
@@ -33,7 +37,7 @@
   <div class="row flex-nowrap">
 
     <!-- Sidebar for desktop -->
-    <div class="col-12 col-sm-4 col-md-3 col-lg-2 sidebar d-none d-md-flex flex-column" id="sidebarContent">
+    <div class="col-auto col-md-3 col-lg-2 px-0 sidebar d-none d-md-flex flex-column" id="sidebarContent">
       <!-- Profile section -->
       <div class="profile-info d-flex align-items-center gap-3 mb-4">
 <img
@@ -51,11 +55,13 @@
 </div>
 
     </div>
-        <a href="warehouse_management.html"><i class="bi bi-speedometer2"></i>Warehouse_Invetory</a>
-        <a href="stock_in.html"><i class="bi bi-speedometer2"></i>Stock_in</a>
-        <a href="dashboard.html"><i class="bi bi-speedometer2"></i>Stock_out</a>
-        <a href="stock_trans_manager.html"><i class="bi bi-speedometer2"></i>Stock_Transfer</a>
-        <a href="stock_archieve_manager.html"><i class="bi bi-speedometer2"></i>Stock_History</a>
+        <a href="warehouse_management.html" data-roles="warehouse_management,warehouse_clerk"><i class="bi bi-speedometer2"></i>Dashboard</a>
+        <a href="warehouse_management.html" data-roles="warehouse_management,warehouse_clerk"><i class="bi bi-speedometer2"></i>Warehouse</a>
+        <a href="purchase_order.html" data-roles="warehouse_management,warehouse_clerk"><i class="bi bi-speedometer2"></i>Purchase_Order</a>
+        <a href="stock_archieve_manager.html" data-roles="warehouse_management,warehouse_clerk"><i class="bi bi-speedometer2"></i>Purchase_Return</a>
+        <a href="stock_adjustment_w.html" data-roles="warehouse_management,warehouse_clerk"><i class="bi bi-speedometer2"></i>Stock_Adjust</a>
+        <a href="stock_trans_manager.html" data-roles="warehouse_management,warehouse_clerk"><i class="bi bi-speedometer2"></i>Stock_Transfer</a>
+        <a href="stock_archieve_manager.html" data-roles="warehouse_management,warehouse_clerk"><i class="bi bi-speedometer2"></i>Stock_History</a>
     </div>
 
 
@@ -69,7 +75,7 @@
     </div>
 
     <!-- Main Content -->
-    <div class="col px-4">
+    <div class="col" style="padding: 0px;">
 <div class="header d-flex justify-content-end align-items-center gap-3 limited-width">
   
   <!-- Notification Icon -->
@@ -99,7 +105,7 @@
 
 </div>
 
-<div class="card mt-4 shadow-sm border-0" style="border-radius:0.75rem; overflow:hidden;">
+<div class="card m-4 mt-4 shadow-sm border-0" style="border-radius:0.75rem; overflow:hidden;">
   <!-- Card header styled to match nav -->
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-3"
        style="background: #1e293b; transition: background-color 0.3s ease; color:white; padding:1rem 1.25rem;">

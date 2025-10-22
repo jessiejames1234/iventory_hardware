@@ -1,4 +1,23 @@
 const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || "http://localhost/hardware/api";
+import { requireRole, logout } from "./auth.js";
+
+// 🔐 Admin only
+const user = requireRole(["admin"]);
+
+// 🔹 Hook up button + load data on page load
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("logged-user").textContent = user.name;
+  document.getElementById("btn-logout").addEventListener("click", logout);
+  displayTerminals();
+
+  const addBtn = document.getElementById("btn-add-terminal");
+  if (addBtn) {
+    addBtn.addEventListener("click", () => {
+      insertTerminalModal();
+    });
+  }
+});
+
 const displayTerminals = async () => {
   const div = document.getElementById("terminal-table-div");
   div.innerHTML = `<div class="p-5 text-center"><div class="spinner-border text-primary"></div></div>`;
@@ -14,43 +33,48 @@ const displayTerminals = async () => {
     div.innerHTML = `<div class="p-4 text-danger text-center">Error loading terminals.</div>`;
   }
 };
-
+const start = 0;
 // 🔹 Render table
 const renderTerminalTable = (data) => {
   const div = document.getElementById("terminal-table-div");
   let html = `
     <table class="table table-striped align-middle">
-      <thead >
+      <thead>
         <tr style="background-color:#2563eb; color:white;">
+          <th>#</th>
           <th>Terminal Name</th>
           <th>Status</th>
+          <th>Action</th>
         </tr>
       </thead>
       <tbody>
   `;
-data.forEach(t => {
-  const isActive = t.status == 1;
-  const statusLabel = isActive
-    ? `<span class="badge bg-success">Active</span>`
-    : `<span class="badge bg-secondary">Inactive</span>`;
 
-  html += `
-    <tr>
-      <td>${t.name}</td>
-      <td>
-        ${statusLabel}
-        <button class="btn btn-sm ${isActive ? "btn-warning" : "btn-success"} ms-2"
-                onclick="toggleTerminalStatus(${t.id}, ${isActive ? 0 : 1})">
-          ${isActive ? "Deactivate" : "Activate"}
-        </button>
-      </td>
-    </tr>
-  `;
-});
+  data.forEach((t, idx) => {  // <-- fixed syntax
+    const isActive = t.status == 1;
+    const statusLabel = isActive
+      ? `<span class="badge bg-success">Active</span>`
+      : `<span class="badge bg-secondary">Inactive</span>`;
+
+    html += `
+      <tr>
+        <td>${start + idx + 1}</td>
+        <td>${t.name}</td>
+        <td>${statusLabel}</td>
+        <td>
+          <button class="btn btn-sm ${isActive ? "btn-warning" : "btn-success"} ms-2"
+                  onclick="toggleTerminalStatus(${t.id}, ${isActive ? 0 : 1})">
+            ${isActive ? "Deactivate" : "Activate"}
+          </button>
+        </td>
+      </tr>
+    `;
+  });
 
   html += `</tbody></table>`;
   div.innerHTML = html;
 };
+
 
 // 🔹 Modal to add new terminal
 const insertTerminalModal = () => {
@@ -81,35 +105,62 @@ const insertTerminalModal = () => {
     const status = document.getElementById("terminal-status").value;
 
     if (!name) {
-      alert("Please enter a terminal name.");
+      Swal.fire({
+        icon: "warning",
+        title: "Missing Input",
+        text: "Please enter a terminal name.",
+        timer: 2000,
+        showConfirmButton: false,
+        scrollbarPadding: false
+      });
       return;
     }
 
-try {
-  const res = await axios.post(`${baseApiUrl}/pos_terminal.php`, new URLSearchParams({
-    operation: "insertTerminal",
-    json: JSON.stringify({ name, status })
-  }));
-  console.log("Insert response:", res.data); // 👈 log the full response
-  if (res.data.status === "success") {
-    alert("POS Terminal created successfully!");
-    modal.hide();
-    displayTerminals();
-  } else {
-    alert(res.data.message || "Error creating terminal");
-  }
-} catch (err) {
-  console.error("Insert error:", err);
-  alert("Error creating terminal (check console)");
-}
+    try {
+      const res = await axios.post(`${baseApiUrl}/pos_terminal.php`, new URLSearchParams({
+        operation: "insertTerminal",
+        json: JSON.stringify({ name, status })
+      }));
 
+      if (res.data.status === "success") {
+        Swal.fire({
+          icon: "success",
+          title: "Created!",
+          text: "POS Terminal created successfully.",
+          timer: 2000,
+          showConfirmButton: false,
+          scrollbarPadding: false
+        });
+        modal.hide();
+        displayTerminals();
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "Failed",
+          text: res.data.message || "Error creating terminal.",
+          timer: 2500,
+          showConfirmButton: false,
+          scrollbarPadding: false
+        });
+      }
+    } catch (err) {
+      console.error("Insert error:", err);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Error creating terminal (check console).",
+        timer: 2500,
+        showConfirmButton: false,
+        scrollbarPadding: false
+      });
+    }
   });
 
   modal.show();
 };
-window.toggleTerminalStatus = async (id, newStatus) => {
-  if (!confirm("Are you sure you want to change this terminal’s status?")) return;
 
+// 🔹 Toggle status
+window.toggleTerminalStatus = async (id, newStatus) => {
   try {
     const res = await axios.post(`${baseApiUrl}/pos_terminal.php`, new URLSearchParams({
       operation: "updateTerminalStatus",
@@ -118,23 +169,33 @@ window.toggleTerminalStatus = async (id, newStatus) => {
     }));
 
     if (res.data.status === "success") {
-      displayTerminals(); // refresh table
+      Swal.fire({
+        icon: "success",
+        title: "Updated",
+        text: "Terminal status updated successfully.",
+        timer: 2000,
+        showConfirmButton: false,
+        scrollbarPadding: false
+      });
+      displayTerminals();
     } else {
-      alert(res.data.message || "Error updating status");
+      Swal.fire({
+        icon: "error",
+        title: "Failed",
+        text: res.data.message || "Error updating status.",
+        timer: 2500,
+        showConfirmButton: false,
+        scrollbarPadding: false
+      });
     }
   } catch {
-    alert("Error updating status");
-  }
-};
-
-// 🔹 Hook up button + load data on page load
-document.addEventListener("DOMContentLoaded", () => {
-  displayTerminals();
-
-  const addBtn = document.getElementById("btn-add-terminal");
-  if (addBtn) {
-    addBtn.addEventListener("click", () => {
-      insertTerminalModal();
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "Error updating status.",
+      timer: 2500,
+      showConfirmButton: false,
+      scrollbarPadding: false
     });
   }
-});
+};

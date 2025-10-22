@@ -1,11 +1,13 @@
-import { checkAuth, logout } from "./auth.js";
+import { requireRole, logout } from "./auth.js";
 
-const user = checkAuth();
+// 🔐 manager only
+const user = requireRole(["admin"]);
+
 const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || "http://localhost/hardware22/api";
 sessionStorage.setItem("baseAPIUrl", baseApiUrl);
 
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("logged-user").textContent = user.name;
+  document.getElementById("logged-user").textContent = user.name; 
   document.getElementById("btn-logout").addEventListener("click", logout);
 
   // 🔒 Hide Add Transfer button on archive page
@@ -56,7 +58,6 @@ function displayTransfersTable(transfers) {
   const thead = document.createElement("thead");
   thead.innerHTML = `
     <tr>
-      <th>ID</th>
       <th>Product</th>
       <th>From Warehouse</th>
       <th>Quantity</th>
@@ -70,7 +71,6 @@ function displayTransfersTable(transfers) {
   transfers.forEach((t) => {
     let row = document.createElement("tr");
     row.innerHTML = `
-      <td>${t.transfer_id}</td>
       <td>${t.product_name}</td>
       <td>${t.from_warehouse_name || "-"}</td>
       <td>${t.quantity}</td>

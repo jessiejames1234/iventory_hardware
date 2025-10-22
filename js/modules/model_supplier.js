@@ -33,10 +33,22 @@ export const insertSupplierModal = (refreshDisplay) => {
   document.querySelector("#blank-modal-footer .btn-insert").addEventListener("click", async () => {
     if (await insertSupplier() == 1) {
       refreshDisplay();
-      alert("Supplier successfully saved!");
+      Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: "Supplier successfully saved!",
+        timer: 1500,
+        showConfirmButton: false,
+        scrollbarPadding: false
+      });
       myModal.hide();
     } else {
-      alert("Error saving supplier!");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Error saving supplier!",
+        scrollbarPadding: false
+      });
     }
   });
 
@@ -95,10 +107,22 @@ export const updateSupplierModal = async (supplierId, refreshDisplay) => {
 
     if (result == 1 || result === "no-change") {
       refreshDisplay();
-      alert("Supplier updated successfully!");
+      Swal.fire({
+        icon: "success",
+        title: "Updated",
+        text: "Supplier updated successfully!",
+        timer: 1500,
+        showConfirmButton: false,
+        scrollbarPadding: false
+      });
       myModal.hide();
     } else {
-      alert("Error updating supplier!");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Error updating supplier!",
+        scrollbarPadding: false
+      });
     }
   });
 
@@ -201,18 +225,33 @@ export const updateModal = async (id, refreshDisplay) => {
     data.append("json", JSON.stringify(formData));
 
     const response = await axios.post(`${sessionStorage.baseAPIUrl}/supplier_ass.php`, data);
-
     if (response.data == 1) {
-      alert(id ? "Updated successfully!" : "Inserted successfully!");
+      Swal.fire({
+        icon: "success",
+        title: id ? "Updated!" : "Inserted!",
+        text: id ? "Updated successfully!" : "Inserted successfully!",
+        timer: 1500,
+        showConfirmButton: false,
+        scrollbarPadding: false
+      });
       myModal.hide();
       refreshDisplay();
     } else if (response.data == -1) {
-      alert("This product already has this supplier assigned!");
+      Swal.fire({
+        icon: "warning",
+        title: "Duplicate",
+        text: "This product already has this supplier assigned!",
+        scrollbarPadding: false
+      });
     } else {
-      alert("Error saving record!");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Error saving record!",
+        scrollbarPadding: false
+      });
     }
   });
-
   myModal.show();
 };
 

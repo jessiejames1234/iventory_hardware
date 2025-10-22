@@ -180,16 +180,63 @@ export const insertProductModal = async (user) => {
     formData.append("operation", "insertProduct");
     formData.append("json", JSON.stringify(payload));
 
-    try {
-      const res = await axios.post(`${baseApiUrl}/product.php`, formData);
-      if (res.data.status === "success") {
-        alert("Product added!");
-        modal.hide();
-        location.reload();
-      } else {
-        alert(res.data.message || "Insert failed.");
-      }
-    } catch (err) { console.error(err); alert("Error connecting to server."); }
+if (errs.length) {
+  Swal.fire({
+    title: "Validation Error",
+    html: errs.join("<br>"),
+    icon: "warning",
+    showConfirmButton: false,
+    timer: 1800,
+    timerProgressBar: true,
+              scrollbarPadding: false
+
+  });
+  return;
+}
+
+try {
+  const res = await axios.post(`${baseApiUrl}/product.php`, formData);
+if (res.data.status === "success") {
+  Swal.fire({
+    title: "Product Added",
+    text: "The product has been successfully added.",
+    icon: "success",
+    showConfirmButton: false,
+    timer: 1500,
+    timerProgressBar: true,
+              scrollbarPadding: false
+
+  }).then(() => {
+    modal.hide();
+    location.reload(); // reload AFTER Swal closes
+  });
+}
+ else {
+    Swal.fire({
+      title: "Failed",
+      text: res.data.message || "Insert failed.",
+      icon: "error",
+      showConfirmButton: false,
+      timer: 1500,
+      timerProgressBar: true,
+                scrollbarPadding: false
+
+    });
+  }
+} catch (err) {
+  console.error(err);
+  Swal.fire({
+    title: "Error",
+    text: "Error connecting to server.",
+    icon: "error",
+    showConfirmButton: false,
+    timer: 1500,
+    timerProgressBar: true,
+              scrollbarPadding: false
+
+  });
+}
+
   });
 
   modal.show();
@@ -333,15 +380,93 @@ const modalBody = `
     const formData = new FormData();
     formData.append("operation", "updateProduct");
     formData.append("json", JSON.stringify(jsonData));
+if (errors.length) {
+  Swal.fire({
+    title: "Validation Error",
+    html: errors.join("<br>"),
+    icon: "warning",
+    showConfirmButton: false,
+    timer: 1800,
+    timerProgressBar: true,
+              scrollbarPadding: false
 
+  });
+  return;
+}
+
+try {
+  const res = await axios.post(`${baseApiUrl}/product.php`, formData);
+
+  // 🧠 Handle malformed JSON or string responses gracefully
+  let data = res.data;
+  if (typeof data === "string") {
     try {
-      const res = await axios.post(`${baseApiUrl}/product.php`, formData);
-      if (res.data.status === "success") {
-        alert("Product updated successfully!");
-        refreshDisplay();
-        modal.hide();
-      } else alert(res.data.message || "Update failed.");
-    } catch (err) { console.error(err); alert("Network or server error."); }
+      data = JSON.parse(data);
+    } catch {
+      data = { status: "error", message: "Invalid JSON from server" };
+    }
+  }
+
+if (data.status === "success") {
+  await Swal.fire({
+    title: "Updated",
+    text: data.message || "Product updated successfully!",
+    icon: "success",
+    showConfirmButton: false,
+    timer: 1000,
+    timerProgressBar: true,
+    scrollbarPadding: false
+  });
+
+  modal.hide();
+
+  // ✅ Works across files: call global reload once modal is closed
+  const modalEl = document.getElementById("blank-modal");
+  modalEl.addEventListener(
+    "hidden.bs.modal",
+    async () => {
+      if (window.refreshProductsTable) {
+        await window.refreshProductsTable();
+      }
+    },
+    { once: true }
+  );
+}else {
+    Swal.fire({
+      title: "Failed",
+      text: data.message || "Update failed.",
+      icon: "error",
+      showConfirmButton: false,
+      timer: 1500,
+      timerProgressBar: true,
+      scrollbarPadding: false
+    });
+  }
+
+} catch (err) {
+  console.error("⚠️ Update request failed:", err);
+
+  let message = "Network or server error.";
+  if (err.response) {
+    // Server returned a response but with error status
+    message = err.response.data?.message || `Server error: ${err.response.status}`;
+  } else if (err.request) {
+    // No response received
+    message = "No response from the server.";
+  }
+
+  Swal.fire({
+    title: "Error",
+    text: message,
+    icon: "error",
+    showConfirmButton: false,
+    timer: 1500,
+    timerProgressBar: true,
+    scrollbarPadding: false
+  });
+}
+
+
   });
 
   modal.show();

@@ -16,9 +16,11 @@ if ($username === '' || $password === '') {
 
 // Fetch user by username
 $sql = "SELECT ul.user_id, ul.username, ul.password_hash, ul.is_active,
-               s.staff_id, s.name, s.role, s.warehouse_id
+               s.staff_id, s.name, s.role, s.location_id,
+               l.location_name
         FROM userlogin ul
         JOIN staff s ON ul.staff_id = s.staff_id
+        LEFT JOIN location l ON s.location_id = l.location_id
         WHERE ul.username = :username
         LIMIT 1";
 
@@ -52,12 +54,17 @@ if (!$checkShift->fetch()) {
     $shiftStmt->execute([":staff_id" => $user['staff_id']]);
 }
 
-// Return success with user info
+$role = strtolower(trim((string)$user['role']));
+$role = str_replace(' ', '_', $role);
+
+$locationId = isset($user['location_id']) ? (int)$user['location_id'] : null;
+
 echo json_encode([
-    "status" => "success",
-    "user_id" => (int)$user['user_id'],
-    "staff_id" => (int)$user['staff_id'],
-    "name" => $user['name'],
-    "role" => strtolower($user['role']), // normalize roles
-    "assigned_warehouse_id" => $user['warehouse_id'] ?? null
+  "status" => "success",
+  "user_id" => (int)$user['user_id'],
+  "staff_id" => (int)$user['staff_id'],
+  "name" => $user['name'],
+  "role" => $role,
+  "assigned_location_id" => $locationId,
+  "assigned_location_name" => $user['location_name'] ?? null
 ]);

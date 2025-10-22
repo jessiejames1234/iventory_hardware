@@ -1,47 +1,88 @@
-      <a href="dashboard.html"><i class="bi bi-speedometer2"></i> Dashboard</a>
-      <a href="product_management.html"><i class="bi bi-card-list"></i>Products</a>
-            <a href="attributes.html"><i class="bi bi-card-list"></i>attributes</a>
 
-      <details>
-        <summary><i class="bi bi-stack"></i> Inventory</summary>
-        <div class="submenu">
-        <a href="current_quantity.html"><i class="bi bi-box"></i> store Inventory</a>
-        <a href="warehouse.html"><i class="bi bi-dash-circle"></i>  Warehouse</a>
-        <a href="stock_out.html"><i class="bi bi-dash-circle"></i> Stock Transfer</a>
-        <a href="stock_archieve_admin.html"><i class="bi bi-dash-circle"></i>Stock History</a>
+    <!-- Store Navigation -->
 
-        </div>
-      </details>
-      <details>
-        <summary><i class="bi bi-cash"></i> Sales</summary>
-        <div class="submenu">
-            
-                    <a href="Terminal_forPOS.html"><i class="bi bi-receipt"></i>POS Terminal</a>
+<a href="dashboard_store.html" data-roles="admin"><i class="bi bi-speedometer2 fs-5 me-2"></i> Dashboard</a>
+<a href="product_management.html" data-roles="admin"><i class="bi bi-box-seam fs-5 me-2"></i> Products</a>
+<details data-roles="admin">
+  <summary><i class="bi bi-tags fs-5 me-2"></i> Attributes</summary>
+  <div class="submenu">
+    <a href="category.html"><i class="bi bi-tags fs-5 me-2"></i> Category</a>
+    <a href="brand.html"><i class="bi bi-tags fs-5 me-2"></i> Brand</a>
+    <a href="unit.html"><i class="bi bi-tags fs-5 me-2"></i> Units</a>
+  </div>
+</details>
+<details data-roles="admin,store_clerk">
+  <summary><i class="bi bi-stack fs-5 me-2"></i> Inventory</summary>
+  <div class="submenu">
+    <a href="store_quantity.html" ><i class="bi bi-box fs-5 me-2"></i> Store Inventory</a>
+    <a href="stock_trans_store.html" ><i class="bi bi-arrow-left-right fs-5 me-2"></i> Stock Transfer</a>
+    <a href="stock_adjustment_store.html"><i class="bi bi-sliders fs-5 me-2"></i> Stock Adjustment</a>
+    <a href="warehouse_details.html"><i class="bi bi-building fs-5 me-2"></i> Warehouse</a>
+  </div>
+</details>
+
+<details data-roles="admin">
+  <summary ><i class="bi bi-cash-coin fs-5 me-2"></i> Sales</summary>
+  <div class="submenu">
+    <a href="Terminal_forPOS.html"><i class="bi bi-pc-display-horizontal fs-5 me-2"></i> POS Terminal</a>
+    <a href="product_management.html"><i class="bi bi-cart-plus fs-5 me-2"></i> New Sale (POS)</a>
+    <a href="sales_history.html "><i class="bi bi-receipt fs-5 me-2"></i> Sales History</a>
+  </div>
+</details>
+
+<details data-roles="admin">
+  <summary><i class="bi bi-truck fs-5 me-2"></i> Suppliers</summary>
+  <div class="submenu">
+    <a href="assisgn_supplier.html"><i class="bi bi-people fs-5 me-2"></i> Supplier List</a>
+    <a href="supplier_management.html"><i class="bi bi-person-plus fs-5 me-2"></i> Add Supplier</a>
+  </div>
+</details>
+
+<details data-roles="admin">
+  <summary><i class="bi bi-people-fill fs-5 me-2"></i> Staff</summary>
+  <div class="submenu">
+    <a href="staff_management.html" data-roles="admin"><i class="bi bi-person-badge fs-5 me-2"></i> Staff List</a>
+    <a href="shift_records.html" data-roles="admin"><i class="bi bi-calendar-week fs-5 me-2"></i> Shift Records</a>
+  </div>
+</details>
+
+<a href="settings.html" data-roles="admin"><i class="bi bi-gear fs-5 me-2"></i> Settings</a>
+<a href="reports.html" data-roles="admin"><i class="bi bi-graph-up fs-5 me-2"></i> Reports</a>
 
 
-          <a href="/sales/new"><i class="bi bi-receipt"></i> New Sale (POS)</a>
-          <a href="/sales/history"><i class="bi bi-clock-history"></i> Sales History</a>
-        </div>
-      </details>
-      <details>
-        <summary><i class="bi bi-arrow-repeat"></i> Returns</summary>
-        <div class="submenu">
-          <a href="/returns/sales"><i class="bi bi-arrow-counterclockwise"></i> Sales Returns</a>
-          <a href="purchase_return.html"><i class="bi bi-arrow-return-left"></i> Purchase Returns</a>
-        </div>
-      </details>
-      <details>
-        <summary><i class="bi bi-truck"></i> Suppliers</summary>
-        <div class="submenu">
-          <a href="assisgn_supplier.html"><i class="bi bi-person-lines-fill"></i> Supplier List</a>
-          <a href="supplier_management.html"><i class="bi bi-person-plus"></i> Add Supplier</a>
-        </div>
-      </details>
-      <details>
-        <summary><i class="bi bi-person-check-fill"></i> Staff</summary>
-        <div class="submenu">
-          <a href="staff_management.html"><i class="bi bi-person"></i> Staff List</a>
-          <a href="shift_records.html"><i class="bi bi-clock"></i> Shift Records</a>
-        </div>
-      </details>
-      <a href="/reports"><i class="bi bi-bar-chart-line"></i> Reports</a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Warehouse Navigation -->
+
+<a href="dashboard_warehouse.html" data-roles="warehouse_management,warehouse_clerk">
+  <i class="bi bi-speedometer2 fs-5 me-2"></i> Dashboard
+</a>
+<a href="warehouse_quantity.html" data-roles="warehouse_management,warehouse_clerk">
+  <i class="bi bi-building fs-5 me-2"></i> Warehouse
+</a>
+<a href="purchase_order.html" data-roles="warehouse_management,warehouse_clerk">
+  <i class="bi bi-file-earmark-text fs-5 me-2"></i> Purchase Order
+</a>
+<a href="purchase_return.html" data-roles="warehouse_management,warehouse_clerk">
+  <i class="bi bi-arrow-counterclockwise fs-5 me-2"></i> Purchase Return
+</a>
+<a href="stock_adjustment_warehouse.html" data-roles="warehouse_management,warehouse_clerk">
+  <i class="bi bi-sliders fs-5 me-2"></i> Stock Adjust
+</a>
+<a href="stock_trans_warehouse.html" data-roles="warehouse_management,warehouse_clerk">
+  <i class="bi bi-arrow-left-right fs-5 me-2"></i> Stock Transfer
+</a>
+<a href="stock_history_warehouse.html" data-roles="warehouse_management,warehouse_clerk">
+  <i class="bi bi-clock-history fs-5 me-2"></i> Stock History
+</a>

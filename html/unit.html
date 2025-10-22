@@ -3,22 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smooth Sidebar Menu</title>
+  <title>Product Attributes Management</title>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-      
+      <!-- SweetAlert2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+
+<!-- SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous" />
   
   <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js" integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
   
   <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
-<link rel="stylesheet" href="../css/style.css">
-  <script type="module" src="../js/warehouse.js"></script>
-
+  <link rel="stylesheet" href="../css/style.css">
+  <script type="module" src="../js/attributes.js"></script>
 </head>
 <body>
+
 <!-- Mobile Navbar -->
 <nav class="navbar navbar-dark bg-dark d-md-none">
   <div class="container-fluid">
@@ -33,7 +37,7 @@
   <div class="row flex-nowrap">
 
     <!-- Sidebar for desktop -->
-    <div class="col-12 col-sm-4 col-md-3 col-lg-2 sidebar d-none d-md-flex flex-column" id="sidebarContent">
+    <div class="col-auto col-md-3 col-lg-2 px-0 sidebar d-none d-md-flex flex-column" id="sidebarContent">
       <!-- Profile section -->
       <div class="profile-info d-flex align-items-center gap-3 mb-4">
 <img
@@ -50,56 +54,55 @@
   </div>
 </div>
 
-      </div>
-      <a href="dashboard.html"><i class="bi bi-speedometer2"></i> Dashboard</a>
-      <a href="product_management.html"><i class="bi bi-card-list"></i>Products</a>
-            <a href="attributes.html"><i class="bi bi-card-list"></i>attributes</a>
+</div>
+<a href="dashboard_store.html" data-roles="admin"><i class="bi bi-speedometer2 fs-5 me-2"></i> Dashboard</a>
+<a href="product_management.html" data-roles="admin"><i class="bi bi-box-seam fs-5 me-2"></i> Products</a>
+<details data-roles="admin">
+  <summary><i class="bi bi-tags fs-5 me-2"></i> Attributes</summary>
+  <div class="submenu">
+    <a href="category.html"><i class="bi bi-tags fs-5 me-2"></i> Category</a>
+    <a href="brand.html"><i class="bi bi-tags fs-5 me-2"></i> Brand</a>
+    <a href="unit.html"><i class="bi bi-tags fs-5 me-2"></i> Units</a>
+  </div>
+</details>
+<details data-roles="admin,store_clerk">
+  <summary><i class="bi bi-stack fs-5 me-2"></i> Inventory</summary>
+  <div class="submenu">
+    <a href="store_quantity.html" ><i class="bi bi-box fs-5 me-2"></i> Store Inventory</a>
+    <a href="stock_trans_store.html" ><i class="bi bi-arrow-left-right fs-5 me-2"></i> Stock Transfer</a>
+    <a href="stock_adjustment_store.html"><i class="bi bi-sliders fs-5 me-2"></i> Stock Adjustment</a>
+    <a href="warehouse_details.html"><i class="bi bi-building fs-5 me-2"></i> Warehouse</a>
+  </div>
+</details>
 
-      <details>
-        <summary><i class="bi bi-stack"></i> Inventory</summary>
-        <div class="submenu">
-        <a href="current_quantity.html"><i class="bi bi-box"></i> store Inventory</a>
-        <a href="warehouse.html"><i class="bi bi-dash-circle"></i>  Warehouse</a>
-        <a href="stock_out.html"><i class="bi bi-dash-circle"></i> Stock Transfer</a>
-        <a href="stock_archieve_admin.html"><i class="bi bi-dash-circle"></i>Stock History</a>
+<details data-roles="admin">
+  <summary ><i class="bi bi-cash-coin fs-5 me-2"></i> Sales</summary>
+  <div class="submenu">
+    <a href="Terminal_forPOS.html"><i class="bi bi-pc-display-horizontal fs-5 me-2"></i> POS Terminal</a>
+    <a href="product_management.html"><i class="bi bi-cart-plus fs-5 me-2"></i> New Sale (POS)</a>
+    <a href="sales_history.html "><i class="bi bi-receipt fs-5 me-2"></i> Sales History</a>
+  </div>
+</details>
 
-        </div>
-      </details>
-      <details>
-        <summary><i class="bi bi-cash"></i> Sales</summary>
-        <div class="submenu">
-            
-                    <a href="Terminal_forPOS.html"><i class="bi bi-receipt"></i>POS Terminal</a>
+<details data-roles="admin">
+  <summary><i class="bi bi-truck fs-5 me-2"></i> Suppliers</summary>
+  <div class="submenu">
+    <a href="assisgn_supplier.html"><i class="bi bi-people fs-5 me-2"></i> Supplier List</a>
+    <a href="supplier_management.html"><i class="bi bi-person-plus fs-5 me-2"></i> Add Supplier</a>
+  </div>
+</details>
 
+<details data-roles="admin">
+  <summary><i class="bi bi-people-fill fs-5 me-2"></i> Staff</summary>
+  <div class="submenu">
+    <a href="staff_management.html"><i class="bi bi-person-badge fs-5 me-2"></i> Staff List</a>
+    <a href="shift_records.html"><i class="bi bi-calendar-week fs-5 me-2"></i> Shift Records</a>
+  </div>
+</details>
 
-          <a href="/sales/new"><i class="bi bi-receipt"></i> New Sale (POS)</a>
-          <a href="/sales/history"><i class="bi bi-clock-history"></i> Sales History</a>
-        </div>
-      </details>
-      <details>
-        <summary><i class="bi bi-arrow-repeat"></i> Returns</summary>
-        <div class="submenu">
-          <a href="/returns/sales"><i class="bi bi-arrow-counterclockwise"></i> Sales Returns</a>
-          <a href="purchase_return.html"><i class="bi bi-arrow-return-left"></i> Purchase Returns</a>
-        </div>
-      </details>
-      <details>
-        <summary><i class="bi bi-truck"></i> Suppliers</summary>
-        <div class="submenu">
-          <a href="assisgn_supplier.html"><i class="bi bi-person-lines-fill"></i> Supplier List</a>
-          <a href="supplier_management.html"><i class="bi bi-person-plus"></i> Add Supplier</a>
-        </div>
-      </details>
-      <details>
-        <summary><i class="bi bi-person-check-fill"></i> Staff</summary>
-        <div class="submenu">
-          <a href="staff_management.html"><i class="bi bi-person"></i> Staff List</a>
-          <a href="shift_records.html"><i class="bi bi-clock"></i> Shift Records</a>
-        </div>
-      </details>
-      <a href="/reports"><i class="bi bi-bar-chart-line"></i> Reports</a>
+<a href="settings.html" data-roles="admin"><i class="bi bi-gear fs-5 me-2"></i> Settings</a>
+<a href="reports.html" data-roles="admin"><i class="bi bi-graph-up fs-5 me-2"></i> Reports</a>
     </div>
-
     <!-- Offcanvas Sidebar for mobile -->
     <div class="offcanvas offcanvas-start sidebar text-bg-dark d-md-none" tabindex="-1" id="sidebarOffcanvas">
       <div class="offcanvas-header">
@@ -110,7 +113,7 @@
     </div>
 
     <!-- Main Content -->
-    <div class="col px-4">
+    <div class="col" style="padding: 0px;">
 <div class="header d-flex justify-content-end align-items-center gap-3 limited-width">
   
   <!-- Notification Icon -->
@@ -140,30 +143,26 @@
 
 </div>
 
-<div class="card mt-4 shadow-sm border-0" style="border-radius:0.75rem; overflow:hidden;">
-  <!-- Card header styled to match nav -->
-  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-3"
-       style="background: #1e293b; transition: background-color 0.3s ease; color:white; padding:1rem 1.25rem;">
-    <h3 class="m-0 fw-bold" style="color: #cbd5e1;"><i class="bi bi-box-seam me-2" style="color: #3b82f6;"></i>Warehouse Inventory</h3>
-<div class="btn-group">
-<button id="btn-add-warehouse" class="btn btn-secondary fw-semibold shadow-sm">
-  <i class="bi bi-building"></i> New Warehouse
-</button>
-
-
-
-</div>
-
+      <!-- Cards Grid -->
+<div class="card m-4 mt-4 shadow-sm border-0" style="border-radius:0.75rem; overflow:hidden;">
+  <div class="card-header d-flex justify-content-between align-items-center" style="background: #1e293b; color:white; padding:1rem 1.25rem;">
+    <h3 class="m-0 fw-bold" style="color: #cbd5e1;"><i class="bi bi-box-seam me-2" style="color: #3b82f6;"></i> Units</h3>
+    <button id="btn-add-unit" class="btn btn-primary fw-semibold shadow-sm"><i class="bi bi-plus-circle"></i> Add Unit</button>
   </div>
-
-  <!-- Card body with table -->
-  <div class="card-body p-0" style="background-color:#f8fafc;">
-    <div id="warehouse-table-div" class="table-responsive"></div>
+  <div class="card-body p-0">
+    <!-- Controls (search + rows) -->
+    <div id="unit-controls" class="d-flex justify-content-between align-items-center p-3 bg-white border-bottom"></div>
+    <!-- Table -->
+    <div id="unit-table-div" class="table-responsive"></div>
+    <!-- Bottom info & pagination -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center p-2 bg-white border-top small">
+      <div id="unit-info" class="text-muted"></div>
+      <nav>
+        <ul id="unit-pagination" class="pagination pagination-sm mb-0"></ul>
+      </nav>
+    </div>
   </div>
 </div>
-
-
-
 
 
       <!-- Modal -->
@@ -179,8 +178,8 @@
           </div>
         </div>
       </div>
-    </div>
 
+    </div>
   </div>
 </div>
 

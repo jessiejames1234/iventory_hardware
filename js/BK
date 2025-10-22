@@ -1,0 +1,83 @@
+// /js/warehouse_management.js
+import { requireRole, logout } from "./auth.js";
+
+// ✅ allow manager + clerk
+const user = requireRole(["warehouse_manager", "warehouse_clerk"]);
+const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || "http://localhost/hardware/api";
+sessionStorage.setItem("baseAPIUrl", baseApiUrl);
+
+document.addEventListener("DOMContentLoaded", () => {
+  // 👤 name
+  const u = document.getElementById("logged-user");
+  if (u) u.textContent = user.name || "User";
+
+  // 🚪 logout
+  document.getElementById("btn-logout")?.addEventListener("click", logout);
+
+  // 🔒 both roles can load, but data is still enforced in the API by staff.location_id
+  loadProductsStrict(user.staff_id);
+});
+
+async function loadProductsStrict(staff_id) {
+  const target = document.getElementById("warehouse-table-div");
+  const title  = document.getElementById("warehouse-title");
+
+  try {
+    target.innerHTML = `<div class="p-4">Loading…</div>`;
+
+    const res = await axios.post("../api/getProductsByLocation.php", { staff_id });
+
+    // API may return {error, code} or the payload
+    if (res.data?.error) {
+      target.innerHTML = `<div class="p-4 text-danger">${res.data.error}</div>`;
+      return;
+    }
+
+    const { warehouse_name, products } = res.data;
+
+    // 🏷️ header (location name)
+    if (title) {
+title.innerHTML = `
+  <i class="bi bi-box-seam me-2" style="color:#3b82f6;"></i>
+  ${warehouse_name || "Warehouse Inventory"}
+`;
+    }
+
+    if (!Array.isArray(products) || products.length === 0) {
+      target.innerHTML = `<div class="p-4">No products found for your assigned location.</div>`;
+      return;
+    }
+
+    let html = `
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr style="background-color:#2563eb;color:white;">
+            <th>Product</th>
+            <th>Model</th>
+            <th class="text-end">Price</th>
+            <th class="text-end">Quantity</th>
+            <th>Location</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    for (const p of products) {
+html += `
+  <tr>
+    <td>${p.product_name}</td>
+    <td>${p.model ?? ""}</td>
+    <td class="text-end">${Number(p.selling_price).toLocaleString(undefined,{style:"currency",currency:"PHP"})}</td>
+    <td class="text-end">${p.quantity}</td>
+    <td>${p.warehouse_name ?? p.location_name ?? ""}</td>  <!-- 👈 robust -->
+  </tr>
+`;
+    }
+    html += `</tbody></table>`;
+    target.innerHTML = html;
+  } catch (err) {
+    console.error(err);
+    document.getElementById("warehouse-table-div").innerHTML =
+      `<div class="p-4 text-danger">Error loading products.</div>`;
+  }
+}

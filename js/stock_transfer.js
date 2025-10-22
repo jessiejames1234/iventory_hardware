@@ -1,271 +1,619 @@
-import { checkAuth, logout } from "./auth.js";
+import { requireRole, logout } from "./auth.js";
+import { viewTransferModal } from "./modules/stock_transfer_modal.js";
 
-const user = checkAuth(); // { staff_id, name, role }
+const user = requireRole(["admin","store_clerk","warehouse_manager","warehouse_clerk"]);
 const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || "http://localhost/hardware/api";
 sessionStorage.setItem("baseAPIUrl", baseApiUrl);
 
+// --- constants
+// --- Role & location detection ---
+const MAIN_STORE_ID = 1; // adjust if needed
+
+// warehouse roles
+const isWarehouseRole = ["warehouse_manager", "warehouse_clerk"].includes(user.role);
+
+// try multiple fields to find assigned warehouse/location
+const assignedLoc = Number(
+  user.assigned_location_id ??
+  user.warehouse_id ??
+  user.location_id ??
+  0
+);
+const BUILDER_PAGE_SIZE = 10;
+const TRANSFERS_PAGE_SIZE = 10;
+
+// caches (change when From changes)
+let productsCache = [];                  // [{product_id, product_name, sku, available_qty}]
+let productMap    = new Map();           // product_id -> product row
+
+// builder rows stored as data objects so we can paginate easily
+let builderRows = []; // {productId, qty}
+
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("logged-user").textContent = user.name;
-  document.getElementById("btn-logout").addEventListener("click", logout);
+  const loggedUserEl = document.getElementById("logged-user");
+  if (loggedUserEl) loggedUserEl.textContent = user.name;
 
-  // Only Admins see Add Transfer button
-  if (user.role !== "admin") {
-    document.getElementById("btn-add-transfer").style.display = "none";
-  }
+  const logoutBtn = document.getElementById("btn-logout");
+  if (logoutBtn) logoutBtn.addEventListener("click", logout);
 
-  displayTransfers();
+  wireBuilderUI();
+  loadLocations();       // fill From/To selects
+  loadTransfersList();   // fill “Recent Transfer” table
 });
 
-// 🔹 Fetch all transfers
-async function displayTransfers() {
-  try {
-    const res = await axios.get(`${baseApiUrl}/stock_transfer.php`, {
-      params: {
-        operation: "getAllTransfers",
-        role: user.role,
-        warehouse_id: user.assigned_warehouse_id
-      }
-    });
+/* =============== Builder Card =============== */
 
-    console.log("Transfers response:", res.data);
+function wireBuilderUI() {
+  $("from-location-select")?.addEventListener("change", onFromChanged);
+  $("btn-add-row")?.addEventListener("click", addBuilderRow);
+  $("btn-submit-request")?.addEventListener("click", openQuantityModal);
+  $("builder-prev")?.addEventListener("click", () => changeBuilderPage(-1));
+  $("builder-next")?.addEventListener("click", () => changeBuilderPage(1));
+}
 
-    if (Array.isArray(res.data)) {
-      // ✅ Only ACTIVE transfers
-      const activeTransfers = res.data.filter(
-        t => t.status !== "completed" && t.status !== "cancelled"
-      );
-      displayTransfersTable(activeTransfers);
-    } else {
-      console.error("Expected array, got:", res.data);
-    }
-  } catch (err) {
-    console.error("Error loading transfers:", err);
+async function loadLocations() {
+  const res = await axios.get(`${baseApiUrl}/stock_transfer.php`, {
+    params: { operation: "getLocations" },
+  });
+  const list = Array.isArray(res.data) ? res.data : [];
+  const fromSel = $("from-location-select");
+  const toSel = $("to-location-select");
+  if (!fromSel || !toSel) return;
+  fromSel.length = 1;
+  toSel.length = 1;
+  list.forEach((loc) => {
+    fromSel.appendChild(new Option(loc.location_name, loc.location_id));
+    toSel.appendChild(new Option(loc.location_name, loc.location_id));
+  });
+}
+
+async function onFromChanged() {
+  builderRows = [];
+  renderBuilderTable();
+  productsCache = [];
+  productMap.clear();
+
+  const fromId = num($("from-location-select")?.value);
+  if (!fromId) {
+    await loadLocations();
+    return;
   }
+  await adjustToSelectForFrom(fromId);
+  const res = await axios.get(`${baseApiUrl}/stock_transfer.php`, {
+    params: { operation: "getAvailableProducts", json: JSON.stringify({ fromLocationId: fromId }) },
+  });
+  productsCache = Array.isArray(res.data) ? res.data : [];
+  productMap = new Map(productsCache.map((p) => [Number(p.product_id), p]));
+}
+
+async function adjustToSelectForFrom(fromId) {
+  const res = await axios.get(`${baseApiUrl}/stock_transfer.php`, { params: { operation: "getLocations" } });
+  const list = Array.isArray(res.data) ? res.data : [];
+  const toSel = $("to-location-select");
+  if (!toSel) return;
+  toSel.length = 1;
+  if (Number(fromId) === MAIN_STORE_ID) {
+    list.forEach((loc) => {
+      if (Number(loc.location_id) !== MAIN_STORE_ID)
+        toSel.appendChild(new Option(loc.location_name, loc.location_id));
+    });
+  } else {
+    const main = list.find((l) => Number(l.location_id) === MAIN_STORE_ID);
+    if (main) toSel.appendChild(new Option(main.location_name, main.location_id));
+  }
+  toSel.selectedIndex = toSel.options.length === 2 ? 1 : 0;
 }
 
 
-// 🔹 Build transfer table
-// 🔹 Build transfer table
-const displayTransfersTable = (transfers) => {
-  const tableDiv = document.getElementById("transfer-table-div");
-  tableDiv.innerHTML = "";
+/* ---------- Builder row management (with pagination & remove) ---------- */
 
-  // ✅ If no transfer requests
-  if (!transfers || transfers.length === 0) {
-    tableDiv.innerHTML = `<div class="alert alert-info text-center m-3">No requests found</div>`;
+function addBuilderRow() {
+  const fromId = num($("from-location-select")?.value);
+  const toId = num($("to-location-select")?.value);
+  if (!fromId || !toId)
+    return Swal.fire("Select locations", "Choose both From and To.", "warning");
+  if (fromId === toId)
+    return Swal.fire("Invalid", "From and To must be different.", "error");
+  if (!productsCache.length)
+    return Swal.fire("No stock", "No products available at selected From location.", "info");
+
+  builderRows.push({ productId: null, quantity: 0 });
+  const lastPage = Math.ceil(builderRows.length / BUILDER_PAGE_SIZE);
+  setBuilderPage(lastPage);
+  renderBuilderTable();
+}
+
+let builderCurrentPage = 1;
+function setBuilderPage(page) {
+  builderCurrentPage = Math.max(1, Math.min(page, Math.ceil(builderRows.length / BUILDER_PAGE_SIZE) || 1));
+}
+function changeBuilderPage(delta) {
+  setBuilderPage(builderCurrentPage + delta);
+  renderBuilderTable();
+}
+
+function renderBuilderTable() {
+  const table = $("request-table");
+  const tbody = builderBody();
+  if (!table || !tbody) return;
+
+  table.classList.add("table", "table-sm", "table-hover", "w-100", "align-middle");
+  table.style.width = "100%";
+
+  toggleBuilderVisibility(builderRows.length > 0);
+
+  const total = builderRows.length;
+  const pages = Math.max(1, Math.ceil(total / BUILDER_PAGE_SIZE));
+  const page = Math.max(1, Math.min(builderCurrentPage, pages));
+  const start = (page - 1) * BUILDER_PAGE_SIZE;
+  const end = Math.min(start + BUILDER_PAGE_SIZE, total);
+  const pageRows = builderRows.slice(start, end);
+  tbody.innerHTML = "";
+
+  pageRows.forEach((r, idx) => {
+    const globalIndex = start + idx;
+    const selectedProductId = r.productId;
+
+    const tr = document.createElement("tr");
+    tr.dataset.globalIndex = String(globalIndex);
+
+    const prodOptions = ['<option value="">— Select product —</option>']
+      .concat(productsCache.map(p =>
+        `<option value="${p.product_id}" ${p.product_id==selectedProductId ? "selected": ""}>${(p.sku||"").trim()} ${p.product_name}</option>`
+      )).join("");
+
+    tr.innerHTML = `
+      <td style="min-width:320px; width:55%;">
+        <select class="form-select form-select-sm sel-product w-100">${prodOptions}</select>
+      </td>
+      <td class="text-center cell-avail" style="width:110px; vertical-align:middle;">-</td>
+      <td style="width:150px;">
+        <div class="d-flex justify-content-end">
+          <input type="number" 
+                 class="form-control form-control-sm inp-qty text-end" 
+                 min="0" placeholder="0" ${selectedProductId ? "" : "disabled"} value="${r.quantity || ""}" 
+                 style="max-width:110px;">
+        </div>
+      </td>
+      <td class="text-center" style="width:60px; vertical-align:middle;">
+        <button type="button" 
+                class="btn btn-sm btn-outline-danger btn-remove-row d-inline-flex align-items-center justify-content-center"
+                style="width:32px; height:32px; padding:0; border-radius:999px;" aria-label="Remove row">
+          <i class="bi bi-x-lg" style="font-size:14px; line-height:1;"></i>
+        </button>
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+
+    const sel = tr.querySelector(".sel-product");
+    const qty = tr.querySelector(".inp-qty");
+    const availCell = tr.querySelector(".cell-avail");
+    const removeBtn = tr.querySelector(".btn-remove-row");
+
+    if (selectedProductId) {
+      const rec = productMap.get(Number(selectedProductId));
+      const avail = Number(rec?.available_qty || 0);
+      availCell.textContent = String(avail);
+      qty.disabled = false;
+      qty.max = String(avail);
+    } else {
+      availCell.textContent = "-";
+      qty.disabled = true;
+    }
+
+    sel.addEventListener("change", () => {
+      const val = num(sel.value);
+      builderRows[globalIndex].productId = val || null;
+      builderRows[globalIndex].quantity = 0;
+      qty.value = "";
+      if (!val) {
+        availCell.textContent = "-";
+        qty.disabled = true;
+        return;
+      }
+      const rec = productMap.get(Number(val));
+      const avail = Number(rec?.available_qty || 0);
+      availCell.textContent = String(avail);
+      qty.disabled = false;
+      qty.max = String(avail);
+    });
+
+    qty.addEventListener("input", () => {
+      const q = clamp(num(qty.value), 0, num(qty.max));
+      qty.value = String(q);
+      builderRows[globalIndex].quantity = q;
+    });
+
+    removeBtn.addEventListener("click", () => {
+      builderRows.splice(globalIndex, 1);
+      const maxPage = Math.max(1, Math.ceil(builderRows.length / BUILDER_PAGE_SIZE));
+      if (builderCurrentPage > maxPage) builderCurrentPage = maxPage;
+      renderBuilderTable();
+    });
+  });
+
+  // Pager with Next/Prev buttons
+// Pager with Next/Prev buttons
+const builderPager = $("builder-pager");
+if (builderPager) {
+  builderPager.style.display = builderRows.length > 0 ? "flex" : "none"; // make visible if rows exist
+  builderPager.innerHTML = `
+    <div class="d-flex justify-content-between align-items-center mt-2 w-100">
+      <button class="btn btn-sm btn-outline-primary" ${page === 1 ? "disabled" : ""} id="builder-prev">Prev</button>
+      <div class="small text-muted text-center">Page ${page} of ${pages} (${total} rows)</div>
+      <button class="btn btn-sm btn-outline-primary" ${page === pages ? "disabled" : ""} id="builder-next">Next</button>
+    </div>
+  `;
+
+  $("#builder-prev").addEventListener("click", () => {
+    if (builderCurrentPage > 1) {
+      builderCurrentPage--;
+      renderBuilderTable();
+    }
+  });
+  $("#builder-next").addEventListener("click", () => {
+    if (builderCurrentPage < pages) {
+      builderCurrentPage++;
+      renderBuilderTable();
+    }
+  });
+}
+
+}
+
+
+
+
+/* ---------- Toggle builder visibility ---------- */
+
+function toggleBuilderVisibility(visible) {
+  $("request-table").style.display = visible ? "" : "none";
+  $("btn-submit-request").style.display = visible ? "" : "none";
+}
+function builderBody() { return $("request-table")?.querySelector("tbody"); }
+
+/* =============== Quantity-only Modal + Save (PENDING) =============== */
+
+async function openQuantityModal(){
+  const fromId = num($("from-location-select")?.value);
+  const toId   = num($("to-location-select")?.value);
+  if (!fromId || !toId){
+    return Swal.fire("Select locations", "Choose both From and To.", "warning");
+  }
+  if (fromId === toId){
+    return Swal.fire("Invalid", "From and To must be different.", "error");
+  }
+
+  // collect non-empty lines from builderRows
+  const lines = builderRows
+    .filter(r => r.productId && r.quantity && r.quantity > 0)
+    .map(r => ({ productId: r.productId, quantity: r.quantity }));
+
+  if (!lines.length){
+    return Swal.fire("No items", "Add at least one product with quantity.", "warning");
+  }
+
+  // build modal rows (use productMap)
+  const rowsHtml = lines.map(l => {
+    const p = productMap.get(l.productId);
+    const avail = num(p?.available_qty);
+    return `
+      <tr data-pid="${l.productId}">
+        <td>${(p?.sku||"")} ${p?.product_name||""}</td>
+        <td class="text-end">${avail}</td>
+        <td style="width:140px;"><input type="number" class="form-control form-control-sm inp-qty-modal" min="0" max="${avail}" value="${l.quantity}"></td>
+      </tr>
+    `;
+  }).join("");
+
+  const modal = new bootstrap.Modal($("blank-modal"), { keyboard: true, backdrop: "static" });
+  setElText("blank-modal-title", "Review Quantities");
+  setElHtml("blank-main-div", `
+    <div class="mb-2 small text-muted">From <b>${fromId}</b> → To <b>${toId}</b></div>
+    <div class="table-responsive" style="max-height:55vh;overflow:auto;">
+      <table class="table table-sm align-middle">
+        <thead><tr><th>Product</th><th class="text-end">Available</th><th>Qty</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+  `);
+  setElHtml("blank-modal-footer", `
+    <button type="button" class="btn btn-primary btn-sm w-100" id="btn-modal-confirm">Confirm</button>
+    <button type="button" class="btn btn-secondary btn-sm w-100" data-bs-dismiss="modal">Close</button>
+  `);
+
+  $("btn-modal-confirm")?.addEventListener("click", async () => {
+    // recollect (respect max)
+    const finalLines = [];
+    document.querySelectorAll("#blank-main-div tbody tr").forEach(tr => {
+      const pid = num(tr.getAttribute("data-pid"));
+      const qEl = tr.querySelector(".inp-qty-modal");
+      const q   = clamp(num(qEl?.value), 0, num(qEl?.getAttribute("max")));
+      if (pid && q > 0) finalLines.push({ productId: pid, quantity: q });
+    });
+    if (!finalLines.length) return Swal.fire("No items", "All quantities are zero.", "info");
+
+    // 1) header: pending
+    const fd1 = new FormData();
+    fd1.append("operation", "createDraftTransfer");
+    fd1.append("json", JSON.stringify({
+      fromLocationId: fromId,
+      toLocationId: toId,
+      requestedBy: user.staff_id
+    }));
+    const r1 = await axios({ url: `${baseApiUrl}/stock_transfer.php`, method: "POST", data: fd1 });
+    const transferId = num(r1.data);
+    if (!transferId) return Swal.fire("Error", "Failed to create transfer header.", "error");
+
+    // 2) add lines
+    const fd2 = new FormData();
+    fd2.append("operation", "addDraftItems");
+    fd2.append("json", JSON.stringify({ stockTransferId: transferId, items: finalLines }));
+    const r2 = await axios({ url: `${baseApiUrl}/stock_transfer.php`, method: "POST", data: fd2 });
+    if (r2.data !== 1) return Swal.fire("Error", r2.data?.message || "Failed adding items.", "error");
+
+    Swal.fire("Saved", `Transfer #${transferId} created as Pending.`, "success");
+    modal.hide();
+
+    // reset builder
+    builderRows = [];
+    renderBuilderTable();
+    toggleBuilderVisibility(false);
+
+    // refresh transfers list
+    loadTransfersList();
+  });
+
+  modal.show();
+}
+
+/* =============== Recent Transfer (2nd table) =============== */
+
+let transfersCache = [];
+let transfersPage = 1;
+
+async function loadTransfersList() {
+  const host = $("stockin-table-div");
+  if (isWarehouseRole && !assignedLoc) {
+    host.innerHTML = `<div class="alert alert-warning my-2">No warehouse assigned. Contact admin.</div>`;
+    return;
+  }
+  try {
+    const filters = {};
+    if (isWarehouseRole && assignedLoc) filters.onlyLocationId = assignedLoc;
+    const res = await axios.get(`${baseApiUrl}/stock_transfer.php`, { params: { operation: "getAllTransfers", json: JSON.stringify(filters) } });
+    let rows = Array.isArray(res.data) ? res.data : [];
+    if (isWarehouseRole && assignedLoc)
+      rows = rows.filter(r => Number(r.from_location_id) === assignedLoc || Number(r.to_location_id) === assignedLoc);
+    transfersCache = rows;
+    transfersPage = 1;
+    renderTransfers();
+  } catch (err) {
+    host.innerHTML = `<div class="alert alert-danger my-2">Failed to load transfers.</div>`;
+  }
+}
+
+function renderTransfers() {
+  const host = $("stockin-table-div");
+  if (!host) return;
+  host.innerHTML = "";
+
+  const rows = transfersCache;
+  if (!rows.length) {
+    host.innerHTML = `<div class="text-center text-muted border rounded p-4">No transfers found.</div>`;
     return;
   }
 
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / TRANSFERS_PAGE_SIZE));
+  if (transfersPage > totalPages) transfersPage = totalPages;
+  const start = (transfersPage - 1) * TRANSFERS_PAGE_SIZE;
+  const pageRows = rows.slice(start, start + TRANSFERS_PAGE_SIZE);
+
   const table = document.createElement("table");
-  table.classList.add("table", "table-hover", "table-striped", "table-sm");
-
-  const thead = document.createElement("thead");
-  thead.innerHTML = `
-    <tr>
-      <th>ID</th>
-      <th>Product</th>
-      <th>From Warehouse</th>
-      <th>Quantity</th>
-      <th>Status</th>
-      <th>Transferred By</th>
-      <th>Action</th>
-    </tr>`;
-  table.appendChild(thead);
-
-  const tbody = document.createElement("tbody");
-
-  transfers.forEach((t) => {
-    let row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${t.transfer_id}</td>
-      <td>${t.product_name}</td>
-      <td>${t.from_warehouse_name || "-"}</td>
-      <td>${t.quantity}</td>
-      <td><span class="badge bg-info">${t.status}</span></td>
-      <td>${t.staff_name || "-"}</td>
-      <td></td>
-    `;
-
-    const actionTd = row.querySelector("td:last-child");
-
-    // ✅ Admin Actions
-    if (user.role === "admin") {
-      if (t.status === "pending" || t.status === "approved") {
-        addActionButton(actionTd, "Cancel", "danger", () =>
-          updateStatus(t.transfer_id, "cancelled")
-        );
-      }
-      if (t.status === "in_transit") {
-        addActionButton(actionTd, "Receive", "success", () =>
-          updateStatus(t.transfer_id, "completed")
-        );
-      }
-    }
-
-    // ✅ Warehouse Manager Actions
-    if (user.role === "warehouse_manager") {
-      if (t.status === "pending") {
-        addActionButton(actionTd, "Approve", "primary", () =>
-          updateStatus(t.transfer_id, "approved")
-        );
-      }
-      if (t.status === "approved") {
-        addActionButton(actionTd, "Deliver", "warning", () =>
-          updateStatus(t.transfer_id, "in_transit")
-        );
-      }
-    }
-
-    tbody.appendChild(row);
-  });
-
-  table.appendChild(tbody);
-  tableDiv.appendChild(table);
-};
-
-
-// 🔹 Reusable action button
-const addActionButton = (container, label, color, onClick) => {
-  let btn = document.createElement("button");
-  btn.classList.add("btn", `btn-${color}`, "btn-sm", "me-1");
-  btn.textContent = label;
-
-  btn.addEventListener("click", () => {
-    onClick(); // no need to check if (await onClick()), because updateStatus handles refresh
-  });
-
-  container.appendChild(btn);
-};
-
-// 🔹 Update transfer status
-// 🔹 Update transfer status
-const updateStatus = async (transferId, status) => {
-  try {
-    const formData = new FormData();
-    formData.append("operation", "updateStatus");
-    formData.append("json", JSON.stringify({ transferId, status }));
-
-    const response = await axios.post(`${baseApiUrl}/stock_transfer.php`, formData);
-
-    // Backend might return 1 or {status:"success"}
-    if (response.data == 1 || response.data?.status === "success") {
-      await displayTransfers(); // 🔄 refresh table
-      return true;
-    } else {
-      console.error("Update failed:", response.data);
-      alert("Failed to update transfer status!");
-      return false;
-    }
-  } catch (err) {
-    console.error("Update error:", err);
-    alert("Error updating transfer status.");
-    return false;
-  }
-};
-
-// 🔹 Add transfer modal
-document.getElementById("btn-add-transfer").addEventListener("click", async () => {
-  const myModal = new bootstrap.Modal(document.getElementById("blank-modal"));
-  document.getElementById("blank-modal-title").innerText = "Add Stock Transfer";
-
-  // fetch warehouses
-  const warehouses = await getWarehouses();
-
-  let warehouseOptions = warehouses
-    .map(w => `<option value="${w.warehouse_id}">${w.warehouse_name}</option>`)
-    .join("");
-
-  let myHtml = `
-    <table class="table table-sm">
+  table.className = "table table-hover table-striped table-sm align-middle";
+  table.innerHTML = `
+    <thead class="table-light sticky-top">
       <tr>
-        <td>Warehouse</td>
-        <td>
-          <select id="transfer-warehouse" class="form-select">
-            <option value="">-- Select Warehouse --</option>
-            ${warehouseOptions}
-          </select>
-        </td>
+        <th>#</th>
+        <th>From</th>
+        <th>To</th>
+        <th>Status</th>
+        <th>Items</th>
+        <th>Date</th>
+        <th class="text-end">Action</th>
       </tr>
-      <tr>
-        <td>Product</td>
-        <td>
-          <select id="transfer-product" class="form-select" disabled>
-            <option value="">-- Select Product --</option>
-          </select>
-        </td>
-      </tr>
-      <tr>
-        <td>Quantity</td>
-        <td><input id="transfer-qty" type="number" class="form-control" min="1" /></td>
-      </tr>
-    </table>`;
-  
-  document.getElementById("blank-main-div").innerHTML = myHtml;
+    </thead>
+    <tbody></tbody>
+  `;
+  const tbody = table.querySelector("tbody");
 
-  document.getElementById("blank-modal-footer").innerHTML = `
-    <button class="btn btn-primary btn-sm w-100" id="btn-save-transfer">Save</button>
-    <button class="btn btn-secondary btn-sm w-100" data-bs-dismiss="modal">Close</button>
+pageRows.forEach((r, idx) => {
+  const status = String(r.status || "").toLowerCase();
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${start + idx + 1}</td>
+    <td>${r.from_location}</td>
+    <td>${r.to_location}</td>
+    <td>${statusBadge(status)}</td>
+    <td>${r.item_count}</td>
+    <td>${formatDate(r.transfer_created)}</td>
+    <td class="text-end"></td>
   `;
 
-  // ✅ When warehouse changes → fetch products
-  document.getElementById("transfer-warehouse").addEventListener("change", async (e) => {
-    const wid = e.target.value;
-    const productSelect = document.getElementById("transfer-product");
+    const actions = tr.querySelector("td.text-end");
+    actions.innerHTML = `
+      <div class="dropdown">
+        <button class="btn btn-sm btn-light border-0" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-three-dots-vertical"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item view-transfer" href="#" data-id="${r.stock_transfer_id}"><i class="bi bi-eye me-2"></i> View</a></li>
+        </ul>
+      </div>
+    `;
 
-    if (!wid) {
-      productSelect.innerHTML = `<option value="">-- Select Product --</option>`;
-      productSelect.disabled = true;
-      return;
+    const menu = actions.querySelector(".dropdown-menu");
+
+    const isStoreToThisWh = Number(r.from_location_id) === MAIN_STORE_ID &&
+                            Number(r.to_location_id) === assignedLoc;
+    const isThisWhToStore = Number(r.from_location_id) === assignedLoc &&
+                            Number(r.to_location_id) === MAIN_STORE_ID;
+    const isStoreToAnyWh = Number(r.from_location_id) === MAIN_STORE_ID &&
+                           Number(r.to_location_id) !== MAIN_STORE_ID;
+    const isAnyWhToStore = Number(r.to_location_id) === MAIN_STORE_ID &&
+                           Number(r.from_location_id) !== MAIN_STORE_ID;
+
+    if (isWarehouseRole) {
+      if (isStoreToThisWh && status === "in_transit") {
+        menu.insertAdjacentHTML('beforeend', `<li><a class="dropdown-item accept-transfer" href="#" data-id="${r.stock_transfer_id}"><i class="bi bi-check2 me-2"></i> Accept</a></li>`);
+      }
+      if (isThisWhToStore && status === "pending") {
+        menu.insertAdjacentHTML('beforeend', `<li><a class="dropdown-item transit-transfer" href="#" data-id="${r.stock_transfer_id}"><i class="bi bi-truck me-2"></i> Transit</a></li>`);
+      }
+    } else {
+      if (isStoreToAnyWh && status === "pending") {
+        menu.insertAdjacentHTML('beforeend', `<li><a class="dropdown-item transit-transfer" href="#" data-id="${r.stock_transfer_id}"><i class="bi bi-truck me-2"></i> Transit</a></li>`);
+      }
+      if (isAnyWhToStore && status === "in_transit") {
+        menu.insertAdjacentHTML('beforeend', `<li><a class="dropdown-item accept-transfer" href="#" data-id="${r.stock_transfer_id}"><i class="bi bi-check2 me-2"></i> Accept</a></li>`);
+      }
     }
 
-    const products = await getProductsByWarehouse(wid);
-
-    let productOptions = products.map(
-      p => `<option value="${p.product_id}">${p.product_name} (Stock: ${p.quantity})</option>`
-    ).join("");
-
-    productSelect.innerHTML = `<option value="">-- Select Product --</option>` + productOptions;
-    productSelect.disabled = false;
+    tbody.appendChild(tr);
   });
 
-  // ✅ Save transfer
-  document.getElementById("btn-save-transfer").addEventListener("click", async () => {
-    const jsonData = {
-      productId: document.getElementById("transfer-product").value,
-      warehouseId: document.getElementById("transfer-warehouse").value,
-      quantity: document.getElementById("transfer-qty").value,
-      staffId: user.staff_id,
-    };
+  host.appendChild(table);
 
-    const formData = new FormData();
-    formData.append("operation", "insertTransfer");
-    formData.append("json", JSON.stringify(jsonData));
+  // wire menu actions
+  host.querySelectorAll(".view-transfer").forEach(a => {
+    a.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      openViewTransfer(num(a.dataset.id));
+    });
+  });
+  host.querySelectorAll(".transit-transfer").forEach(a => {
+    a.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      setStatus(num(a.dataset.id), "in_transit");
+    });
+  });
+  host.querySelectorAll(".accept-transfer").forEach(a => {
+    a.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      setStatus(num(a.dataset.id), "completed");
+    });
+  });
 
-    const response = await axios.post(`${baseApiUrl}/stock_transfer.php`, formData);
-    if (response.data == 1) {
-      displayTransfers();
-      myModal.hide();
-      alert("Transfer request added!");
+  // pagination
+  const pager = document.createElement("div");
+  pager.className = "d-flex justify-content-between align-items-center mt-2";
+  pager.innerHTML = `
+    <div id="transfers-info" class="small text-muted">Showing ${Math.min(start+1,total)} to ${Math.min(start+pageRows.length,total)} of ${total} entries</div>
+    <ul class="pagination pagination-sm mb-0" id="transfers-pagination"></ul>
+  `;
+  host.appendChild(pager);
+
+  const pagEl = $("transfers-pagination");
+  pagEl.innerHTML = "";
+
+  const makeLi = (label, disabled, onClick) => {
+    const li = document.createElement("li");
+    li.className = `page-item ${disabled ? "disabled" : ""}`;
+    li.innerHTML = `<button class="page-link">${label}</button>`;
+    if (!disabled) li.querySelector("button").addEventListener("click", onClick);
+    pagEl.appendChild(li);
+  };
+
+  makeLi("««", transfersPage === 1, () => { transfersPage = 1; renderTransfers(); });
+  makeLi("‹", transfersPage === 1, () => { if (transfersPage>1) transfersPage--; renderTransfers(); });
+
+  const curLi = document.createElement("li");
+  curLi.className = "page-item active";
+  curLi.innerHTML = `<button class="page-link">${transfersPage}</button>`;
+  pagEl.appendChild(curLi);
+
+  makeLi("›", transfersPage === totalPages, () => { if (transfersPage<totalPages) transfersPage++; renderTransfers(); });
+  makeLi("»»", transfersPage === totalPages, () => { transfersPage = totalPages; renderTransfers(); });
+}
+
+
+/* ---------- view / status helpers ---------- */
+
+
+async function viewTransfer(id){
+  const res = await axios.get(`${baseApiUrl}/stock_transfer.php`, {
+    params: { operation: "getTransfer", json: JSON.stringify({ stockTransferId: id }) }
+  });
+  const t = res.data || {};
+  const lines = (t.items||[]).map(i => `${(i.sku||"")} ${i.product_name} × ${i.quantity}`).join("<br>") || "(no items)";
+  Swal.fire({
+    title: `Transfer #${t.header?.stock_transfer_id}`,
+    html: `<div class="text-start">
+      <div><b>From:</b> ${t.header?.from_location}</div>
+      <div><b>To:</b> ${t.header?.to_location}</div>
+      <div><b>Status:</b> ${t.header?.status}</div>
+      <hr/>${lines}
+    </div>`
+  });
+}
+
+async function setStatus(id, status){
+  try{
+    const fd = new FormData();
+    fd.append("operation", "updateTransferStatus");
+    fd.append("json", JSON.stringify({ stockTransferId: id, status }));
+
+    const res = await axios({
+      url: `${baseApiUrl}/stock_transfer.php`,
+      method: "POST",
+      data: fd
+    });
+
+    if (res.data === 1) {
+      Swal.fire("OK", `Status set to ${status}.`, "success");
+      loadTransfersList();
+    } else {
+      const msg = (res.data && (res.data.message || res.data.error)) || "Failed.";
+      Swal.fire("Error", msg, "error");
     }
-  });
+  }catch(err){
+    Swal.fire("Error", err?.message || "Network error", "error");
+  }
+}
 
-  myModal.show();
-});
+/* =============== helpers =============== */
 
+async function openViewTransfer(id) {
+  if (typeof viewTransferModal === "function") viewTransferModal({ stockTransferId: id });
+}
 
-// 🔹 Get warehouses
-// ✅ fetch warehouses
-const getWarehouses = async () => {
-  const response = await axios.get(`${baseApiUrl}/stock_transfer.php`, {
-    params: { operation: "getWarehouses" },
-  });
-  return response.data;
-};
+function $(id) {
+  return document.getElementById(id);
+}
+function num(v) {
+  return Number(v || 0);
+}
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(v, max));
+}
+function formatDate(s) {
+  const d = new Date(s);
+  return isNaN(d) ? "" : d.toLocaleString();
+}
+function statusBadge(s) {
+  const map = { completed: "success", in_transit: "warning", pending: "info" };
+  const cls = map[s] || "secondary";
+  const label = s.replace(/_/g, " ");
+  return `<span class="badge text-bg-${cls} text-uppercase">${label}</span>`;
+}
+function setElText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
 
-// ✅ fetch products by warehouse
-const getProductsByWarehouse = async (warehouseId) => {
-  const response = await axios.get(`${baseApiUrl}/stock_transfer.php`, {
-    params: { operation: "getProductsByWarehouse", warehouseId }
-  });
-  return response.data;
-};
+function setElHtml(id, html) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = html;
+}

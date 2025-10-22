@@ -2,208 +2,202 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smooth Sidebar Menu</title>
-  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-      
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous" />
-  
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js" integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q" crossorigin="anonymous"></script>
-  
-  <!-- Bootstrap Icons -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
-<link rel="stylesheet" href="../css/style.css">
-  <script type="module" src="../js/purchasereturn.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smooth Sidebar Menu — Purchase Return</title>
 
+  <!-- libs -->
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- your app -->
+  <link rel="stylesheet" href="../css/style.css">
+  <!-- IMPORTANT: use the new Purchase Return script -->
+  <script type="module" src="../js/purchase_return.js"></script>
 </head>
 <body>
-<!-- Mobile Navbar -->
-<nav class="navbar navbar-dark bg-dark d-md-none">
-  <div class="container-fluid">
-    <button class="btn btn-outline-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas">
-      <i class="bi bi-list"></i> Menu
-    </button>
-    <span class="navbar-text text-light fw-semibold">Admin Panel</span>
-  </div>
-</nav>
-
-<div class="container-fluid">
-  <div class="row flex-nowrap">
-
-    <!-- Sidebar for desktop -->
-    <div class="col-12 col-sm-4 col-md-3 col-lg-2 sidebar d-none d-md-flex flex-column" id="sidebarContent">
-      <!-- Profile section -->
-      <div class="profile-info d-flex align-items-center gap-3 mb-4">
-<img
-  src="../assets/1.jpg"
-  alt="Admin Profile"
-  class="profile-image rounded-circle"
-  style="width: 70px; height: 70px; object-fit: cover; user-select: none; box-shadow: 0 0 8px rgb(37 99 235 / 0.5);"
-/>
-<div class="status-text">
-  <div class="fw-semibold fs-6 text-light mb-1">Admin</div>
-  <div class="online-status d-flex align-items-center gap-2">
-    <span class="online-dot"></span>
-    <small class="fw-semibold" style="font-size:0.8rem;">Online</small>
-  </div>
-</div>
-
-      </div>
-      <a href="dashboard.html"><i class="bi bi-speedometer2"></i> Dashboard</a>
-      <a href="product_management.html"><i class="bi bi-card-list"></i>Products</a>
-            <a href="attributes.html"><i class="bi bi-card-list"></i>attributes</a>
-
-      <details>
-        <summary><i class="bi bi-stack"></i> Inventory</summary>
-        <div class="submenu">
-        <a href="warehouse.html"><i class="bi bi-dash-circle"></i>  Warehouse</a>
-        <a href="stock_in.html"><i class="bi bi-plus-circle"></i> Stock In</a>
-        <a href="stock_out.html"><i class="bi bi-dash-circle"></i> Stock Transfer</a>
-        <a href="current_quantity.html"><i class="bi bi-box"></i> store Inventory</a>
-        </div>
-      </details>
-      <details>
-        <summary><i class="bi bi-cash"></i> Sales</summary>
-        <div class="submenu">
-            
-                    <a href="Terminal_forPOS.html"><i class="bi bi-receipt"></i>POS Terminal</a>
-
-
-          <a href="/sales/new"><i class="bi bi-receipt"></i> New Sale (POS)</a>
-          <a href="/sales/history"><i class="bi bi-clock-history"></i> Sales History</a>
-        </div>
-      </details>
-      <details>
-        <summary><i class="bi bi-arrow-repeat"></i> Returns</summary>
-        <div class="submenu">
-          <a href="/returns/sales"><i class="bi bi-arrow-counterclockwise"></i> Sales Returns</a>
-          <a href="purchase_return.html"><i class="bi bi-arrow-return-left"></i> Purchase Returns</a>
-        </div>
-      </details>
-      <details>
-        <summary><i class="bi bi-truck"></i> Suppliers</summary>
-        <div class="submenu">
-          <a href="assisgn_supplier.html"><i class="bi bi-person-lines-fill"></i> Supplier List</a>
-          <a href="supplier_management.html"><i class="bi bi-person-plus"></i> Add Supplier</a>
-        </div>
-      </details>
-      <details>
-        <summary><i class="bi bi-person-check-fill"></i> Staff</summary>
-        <div class="submenu">
-          <a href="staff_management.html"><i class="bi bi-person"></i> Staff List</a>
-          <a href="shift_records.html"><i class="bi bi-clock"></i> Shift Records</a>
-        </div>
-      </details>
-      <a href="/reports"><i class="bi bi-bar-chart-line"></i> Reports</a>
-    </div>
-    <!-- Offcanvas Sidebar for mobile -->
-    <div class="offcanvas offcanvas-start sidebar text-bg-dark d-md-none" tabindex="-1" id="sidebarOffcanvas">
-      <div class="offcanvas-header">
-        <h5 class="offcanvas-title">Menu</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
-      </div>
-      <div class="offcanvas-body p-0" id="offcanvasContent"></div>
-    </div>
-
-    <!-- Main Content -->
-    <div class="col px-4">
-<div class="header d-flex justify-content-end align-items-center gap-3 limited-width">
-  
-  <!-- Notification Icon -->
-  <div class="position-relative">
-    <i class="bi bi-bell-fill text-white fs-5"></i>
-    <!-- Optional notification badge -->
-
-  </div>
-
-  <!-- Username -->
-  <span id="logged-user" class="text-white">Admin</span>
-
-  <!-- Dropdown with three-dot icon -->
-<div class="dropdown">
-  <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="background:none; border:none; color:white;">
-    <i class="bi bi-three-dots-vertical"></i>
-  </button>
-
-  <ul class="dropdown-menu dropdown-menu-end dropdown-animate" aria-labelledby="userDropdown">
-    <li>
-      <button class="dropdown-item logout-btn" id="btn-logout">
-        <i class="bi bi-box-arrow-right me-1"></i> Logout
+  <!-- Mobile Navbar -->
+  <nav class="navbar navbar-dark bg-dark d-md-none">
+    <div class="container-fluid">
+      <button class="btn btn-outline-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas">
+        <i class="bi bi-list"></i> Menu
       </button>
-    </li>
-  </ul>
-</div>
+      <span class="navbar-text text-light fw-semibold">Admin Panel</span>
+    </div>
+  </nav>
 
-</div>
-
-<div class="card mt-4 shadow-sm border-0" style="border-radius:0.75rem; overflow:hidden;">
-  <!-- Card header styled to match nav -->
-  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-3"
-       style="background: #1e293b; transition: background-color 0.3s ease; color:white; padding:1rem 1.25rem;">
-    <h3 class="m-0 fw-bold" style="color: #cbd5e1;"><i class="bi bi-box-seam me-2" style="color: #3b82f6;"></i>Purchase Return</h3>
-<div class="btn-group">
-<button id="btn-add-return" class="btn btn-primary fw-semibold shadow-sm">
-  <i class="bi bi-plus-circle"></i>Add New Return
-</button>
-
-
-
-</div>
-
-  </div>
-
-  <!-- Card body with table -->
-  <div class="card-body p-0" style="background-color:#f8fafc;">
-    <div id="purchasereturn-table-div" class="table-responsive"></div>
-  </div>
-</div>
-
-
-
-      <!-- Modal -->
-      <div class="modal fade" id="blank-modal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="blank-modal-title">Modal Title</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+  <div class="container-fluid">
+    <div class="row flex-nowrap">
+      <!-- Sidebar (desktop) -->
+      <div class="col-auto col-md-3 col-lg-2 px-0 sidebar d-none d-md-flex flex-column" id="sidebarContent">
+        <div class="profile-info d-flex align-items-center gap-3 mb-4">
+          <img src="../assets/1.jpg" alt="Admin Profile" class="profile-image rounded-circle"
+               style="width:70px;height:70px;object-fit:cover;user-select:none;box-shadow:0 0 8px rgb(37 99 235 / 0.5);" />
+          <div class="status-text">
+            <div class="fw-semibold fs-6 text-light mb-1">Manager</div>
+            <div class="online-status d-flex align-items-center gap-2">
+              <span class="online-dot"></span>
+              <small class="fw-semibold" style="font-size:0.8rem;">Online</small>
             </div>
-            <div class="modal-body" id="blank-main-div"></div>
-            <div class="modal-footer" id="blank-modal-footer"></div>
           </div>
         </div>
+
+        <!-- nav -->
+        <a href="dashboard_warehouse.html" data-roles="warehouse_management,warehouse_clerk">
+          <i class="bi bi-speedometer2 fs-5 me-2"></i> Dashboard
+        </a>
+        <a href="warehouse_quantity.html" data-roles="warehouse_management,warehouse_clerk">
+          <i class="bi bi-building fs-5 me-2"></i> Warehouse
+        </a>
+        <a href="purchase_order.html" data-roles="warehouse_management,warehouse_clerk">
+          <i class="bi bi-file-earmark-text fs-5 me-2"></i> Purchase Order
+        </a>
+        <a href="purchase_return.html" data-roles="warehouse_management,warehouse_clerk" class="active">
+          <i class="bi bi-arrow-counterclockwise fs-5 me-2"></i> Purchase Return
+        </a>
+        <a href="stock_adjustment_warehouse.html" data-roles="warehouse_management,warehouse_clerk">
+          <i class="bi bi-sliders fs-5 me-2"></i> Stock Adjust
+        </a>
+        <a href="stock_trans_warehouse.html" data-roles="warehouse_management,warehouse_clerk">
+          <i class="bi bi-arrow-left-right fs-5 me-2"></i> Stock Transfer
+        </a>
+        <a href="stock_history_warehouse.html" data-roles="warehouse_management,warehouse_clerk">
+          <i class="bi bi-clock-history fs-5 me-2"></i> Stock History
+        </a>
       </div>
+
+      <!-- Offcanvas Sidebar (mobile) -->
+      <div class="offcanvas offcanvas-start sidebar text-bg-dark d-md-none" tabindex="-1" id="sidebarOffcanvas">
+        <div class="offcanvas-header">
+          <h5 class="offcanvas-title">Menu</h5>
+          <button class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body p-0" id="offcanvasContent"></div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="col" style="padding:0;">
+        <div class="header d-flex justify-content-end align-items-center gap-3 limited-width">
+          <div class="position-relative">
+            <i class="bi bi-bell-fill text-white fs-5"></i>
+          </div>
+          <span id="logged-user" class="text-white">Manager</span>
+          <div class="dropdown">
+            <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="background:none;border:none;color:white;">
+              <i class="bi bi-three-dots-vertical"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end dropdown-animate" aria-labelledby="userDropdown">
+              <li>
+                <button class="dropdown-item logout-btn" id="btn-logout">
+                  <i class="bi bi-box-arrow-right me-1"></i> Logout
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Builder Card -->
+        <div class="card mt-4 m-4 shadow-sm border-0" style="border-radius:0.75rem; overflow:hidden;">
+          <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-3"
+               style="background:#1e293b; color:white; padding:1rem 1.25rem;">
+            <h3 class="m-0 fw-bold" style="color:#cbd5e1;">
+              <i class="bi bi-arrow-counterclockwise me-2" style="color:#ef4444;"></i> Purchase Return
+            </h3>
+
+            <div class="d-flex align-items-center gap-2">
+              <select id="supplier-select" class="form-select form-select-sm" style="min-width:260px;">
+                <option value="">— Filter by Supplier —</option>
+                <!-- options loaded by JS -->
+              </select>
+              <div class="btn-group">
+                <button id="btn-add-row" class="btn btn-primary fw-semibold shadow-sm">
+                  <i class="bi bi-plus-circle"></i> Add row
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-body" style="background-color:#f8fafc;">
+            <div class="table-responsive">
+              <table id="request-table" class="table table-hover table-striped table-sm align-middle mb-3" style="display:none;">
+<thead class="table-light">
+  <tr>
+    <th>Product</th>
+    <th style="width:12%;">Return Qty</th>
+    <th style="width:18%;">Line notes</th> <!-- 👈 added -->
+    <th class="text-end" style="width:16%;">Unit Cost</th>
+    <th class="text-end" style="width:16%;">Line Total</th>
+    <th style="width:6%;"></th>
+  </tr>
+</thead>
+
+                <tbody></tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="3" class="text-end fw-semibold">Grand Total</td>
+                    <td id="grand-total" class="text-end fw-bold">0.00</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div class="d-flex justify-content-end">
+              <button id="btn-submit-request" class="btn btn-primary btn-sm fw-semibold" style="display:none;">
+                Review Return
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Returns -->
+        <div class="card mt-4 m-4 shadow-sm border-0" style="border-radius:0.75rem; overflow:hidden;">
+          <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-3"
+               style="background:#1e293b; color:white; padding:1rem 1.25rem;">
+            <h3 class="m-0 fw-bold" style="color:#cbd5e1;">
+              <i class="bi bi-list-ul me-2" style="color:#3b82f6;"></i> Recent Purchase Returns
+            </h3>
+          </div>
+          <div class="card-body p-0" style="background-color:#f8fafc;">
+            <div id="pr-table-div" class="table-responsive"></div>
+          </div>
+        </div>
+
+        <!-- Reuse your existing blank modal shell -->
+        <div class="modal fade" id="blank-modal" tabindex="-1">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="blank-modal-title">Modal Title</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body" id="blank-main-div"></div>
+              <div class="modal-footer" id="blank-modal-footer"></div>
+            </div>
+          </div>
+        </div>
+      </div> <!-- /col -->
     </div>
-
   </div>
-</div>
 
-<script>
-  // Sidebar open state save
-  const sidebarDetails = document.querySelectorAll(".sidebar details");
-  function saveOpenMenus() {
-    const openMenus = [];
-    sidebarDetails.forEach((el, index) => {
-      if (el.open) openMenus.push(index);
+  <script>
+    // sidebar open state + mobile clone (same as your PO page)
+    const sidebarDetails = document.querySelectorAll(".sidebar details");
+    function saveOpenMenus(){
+      const open=[]; sidebarDetails.forEach((el,i)=>{ if(el.open) open.push(i); });
+      localStorage.setItem("openSidebarMenus", JSON.stringify(open));
+    }
+    sidebarDetails.forEach(el=> el.addEventListener("toggle", saveOpenMenus));
+    window.addEventListener("DOMContentLoaded", ()=>{
+      const open = JSON.parse(localStorage.getItem("openSidebarMenus")||"[]");
+      sidebarDetails.forEach((el,i)=> el.toggleAttribute("open", open.includes(i)));
+      document.getElementById("offcanvasContent").innerHTML =
+        document.getElementById("sidebarContent").innerHTML;
     });
-    localStorage.setItem("openSidebarMenus", JSON.stringify(openMenus));
-  }
-  sidebarDetails.forEach((el) => el.addEventListener("toggle", saveOpenMenus));
-  window.addEventListener("DOMContentLoaded", () => {
-    const openMenus = JSON.parse(localStorage.getItem("openSidebarMenus") || "[]");
-    sidebarDetails.forEach((el, index) => {
-      if (openMenus.includes(index)) el.setAttribute("open", true);
-      else el.removeAttribute("open");
-    });
-
-    // Clone desktop sidebar into offcanvas for mobile
-    const sidebarHTML = document.getElementById("sidebarContent").innerHTML;
-    document.getElementById("offcanvasContent").innerHTML = sidebarHTML;
-  });
-  window.addEventListener("beforeunload", saveOpenMenus);
-</script>
-
+    window.addEventListener("beforeunload", saveOpenMenus);
+  </script>
 </body>
 </html>

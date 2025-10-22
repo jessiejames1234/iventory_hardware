@@ -6,35 +6,31 @@
   <title>Smooth Sidebar Menu</title>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
       
-  <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous" />
   
-  <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js" integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q" crossorigin="anonymous"></script>
   
-  <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
-<script type="module" src="../js/stock_transfer.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <script type="module" src="../js/stock_adjustment.js"></script>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
-<!-- Mobile Navbar -->
 <nav class="navbar navbar-dark bg-dark d-md-none">
   <div class="container-fluid">
     <button class="btn btn-outline-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas">
       <i class="bi bi-list"></i> Menu
     </button>
-    <span class="navbar-text text-light fw-semibold">Manager Panel</span>
+    <span class="navbar-text text-light fw-semibold">Admin Panel</span>
   </div>
 </nav>
 
 <div class="container-fluid">
   <div class="row flex-nowrap">
 
-    <!-- Sidebar for desktop -->
-    <div class="col-12 col-sm-4 col-md-3 col-lg-2 sidebar d-none d-md-flex flex-column" id="sidebarContent">
-      <!-- Profile section -->
+    <div class="col-auto col-md-3 col-lg-2 px-0 sidebar d-none d-md-flex flex-column" id="sidebarContent">
       <div class="profile-info d-flex align-items-center gap-3 mb-4">
 <img
   src="../assets/1.jpg"
@@ -43,22 +39,36 @@
   style="width: 70px; height: 70px; object-fit: cover; user-select: none; box-shadow: 0 0 8px rgb(37 99 235 / 0.5);"
 />
 <div class="status-text">
-  <div class="fw-semibold fs-6 text-light mb-1">Manager</div>
+  <div class="fw-semibold fs-6 text-light mb-1">Admin</div>
   <div class="online-status d-flex align-items-center gap-2">
     <span class="online-dot"></span>
     <small class="fw-semibold" style="font-size:0.8rem;">Online</small>
   </div>
 </div>
 
-    </div>
-        <a href="warehouse_management.html"><i class="bi bi-speedometer2"></i>Warehouse_Invetory</a>
-        <a href="test.html"><i class="bi bi-speedometer2"></i>Stock_in</a>
-        <a href="dashboard.html"><i class="bi bi-speedometer2"></i>Stock_out</a>
-        <a href="stock_trans_manager.html"><i class="bi bi-speedometer2"></i>Stock_Transfer</a>
-        <a href="stock_archieve_manager.html"><i class="bi bi-speedometer2"></i>Stock_History</a>
-    </div>
-
-    <!-- Offcanvas Sidebar for mobile -->
+</div>
+<a href="dashboard_warehouse.html" data-roles="warehouse_management,warehouse_clerk">
+  <i class="bi bi-speedometer2 fs-5 me-2"></i> Dashboard
+</a>
+<a href="warehouse_quantity.html" data-roles="warehouse_management,warehouse_clerk">
+  <i class="bi bi-building fs-5 me-2"></i> Warehouse
+</a>
+<a href="purchase_order.html" data-roles="warehouse_management,warehouse_clerk">
+  <i class="bi bi-file-earmark-text fs-5 me-2"></i> Purchase Order
+</a>
+<a href="purchase_return.html" data-roles="warehouse_management,warehouse_clerk">
+  <i class="bi bi-arrow-counterclockwise fs-5 me-2"></i> Purchase Return
+</a>
+<a href="stock_adjustment_warehouse.html" data-roles="warehouse_management,warehouse_clerk">
+  <i class="bi bi-sliders fs-5 me-2"></i> Stock Adjust
+</a>
+<a href="stock_trans_warehouse.html" data-roles="warehouse_management,warehouse_clerk">
+  <i class="bi bi-arrow-left-right fs-5 me-2"></i> Stock Transfer
+</a>
+<a href="stock_history_warehouse.html" data-roles="warehouse_management,warehouse_clerk">
+  <i class="bi bi-clock-history fs-5 me-2"></i> Stock History
+</a>
+</div>
     <div class="offcanvas offcanvas-start sidebar text-bg-dark d-md-none" tabindex="-1" id="sidebarOffcanvas">
       <div class="offcanvas-header">
         <h5 class="offcanvas-title">Menu</h5>
@@ -67,21 +77,16 @@
       <div class="offcanvas-body p-0" id="offcanvasContent"></div>
     </div>
 
-    <!-- Main Content -->
-    <div class="col px-4">
+    <div class="col" style="padding: 0px;">
 <div class="header d-flex justify-content-end align-items-center gap-3 limited-width">
   
-  <!-- Notification Icon -->
   <div class="position-relative">
     <i class="bi bi-bell-fill text-white fs-5"></i>
-    <!-- Optional notification badge -->
 
   </div>
 
-  <!-- Username -->
-  <span id="logged-user" class="text-white">Manager</span>
+  <span id="logged-user" class="text-white">Admin</span>
 
-  <!-- Dropdown with three-dot icon -->
 <div class="dropdown">
   <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="background:none; border:none; color:white;">
     <i class="bi bi-three-dots-vertical"></i>
@@ -98,25 +103,63 @@
 
 </div>
 
-<div class="card mt-4 shadow-sm border-0" style="border-radius:0.75rem; overflow:hidden;">
-  <!-- Card header styled to match nav -->
+<div class="card mt-4 m-4 shadow-sm border-0" style="border-radius:0.75rem; overflow:hidden;">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-3"
        style="background: #1e293b; transition: background-color 0.3s ease; color:white; padding:1rem 1.25rem;">
-    <h3 class="m-0 fw-bold" style="color: #cbd5e1;"><i class="bi bi-box-seam me-2" style="color: #3b82f6;"></i>Stock Transfers</h3>
-<div class="btn-group">
-<button id="btn-add-transfer" class="btn btn-primary fw-semibold shadow-sm">
-  <i class="bi bi-plus-circle"></i> Add Transfer
-</button>
+    <h3 class="m-0 fw-bold" style="color: #cbd5e1;">
+      <i class="bi bi-box-seam me-2" style="color: #3b82f6;"></i>Purchase_Order
+    </h3>
 
+    <!-- List of all product Base on Role if admin (main store location) if warehouse_manager (warehouse location base on user table what warehouse he got assisned) -->    
+    <div class="d-flex align-items-center gap-2">
+      <select id="supplier-select" class="form-select form-select-sm" style="min-width: 260px;">
+                <!-- show only the product base on inventory table -->
+        <option value="">— List of all prooduct —</option>
+      </select>
+              <div class="btn-group">
 
-
-</div>
-
+      <button id="btn-add-row" class="btn btn-primary fw-semibold shadow-sm">
+        <i class="bi bi-plus-circle"></i> Add row
+      </button>
+              </div>
+    </div>
   </div>
 
-  <!-- Card body with table -->
+  <!-- Request builder table -->
+  <div class="card-body" style="background-color:#f8fafc;">
+    <div class="table-responsive">
+      <table id="request-table" class="table table-hover table-striped table-sm align-middle mb-3" style="display:none;">
+        <thead class="table-light">
+          <tr>
+            <th style="width:35%;">Product</th>
+            <th style="width:12%;">Old_quantity</th>
+            <th style="width:16%;">Change_quantity</th>
+            <th style="width:16%;">New_quantity</th>
+            <th style="width:5%;">Reason</th>
+          </tr>
+        </thead>
+      </table>
+    </div>
+
+    <div class="d-flex justify-content-end">
+
+      <button id="btn-submit-request" class="btn btn-primary btn-sm fw-semibold" style="display:none;">
+        Request to Add
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Existing list card -->
+<div class="card mt-4 m-4 shadow-sm border-0" style="border-radius:0.75rem; overflow:hidden;">
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-3"
+       style="background: #1e293b; transition: background-color 0.3s ease; color:white; padding:1rem 1.25rem;">
+    <h3 class="m-0 fw-bold" style="color: #cbd5e1;">
+      <i class="bi bi-list-ul me-2" style="color: #3b82f6;"></i>Recent Adjusted
+    </h3>
+  </div>
   <div class="card-body p-0" style="background-color:#f8fafc;">
-    <div id="transfer-table-div" class="table-responsive"></div>
+    <div id="stockin-table-div" class="table-responsive"></div>
   </div>
 </div>
 

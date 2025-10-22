@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cashier Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="../js/index.js" ></script>
+    <script src=""></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+
+</head>
+<style>
+  .products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  align-items: start; /* ensures all cards align from the top */
+}
+.product-card {
+  height: 100%; /* cards stretch to fill available space */
+  min-height: 180px; /* prevents shrinking when fewer cards */
+}
+
+  /* Hide scrollbar but keep scrolling */
+html {
+  overflow-y: scroll;       /* Reserve space for scrollbar */
+}
+::-webkit-scrollbar {
+  display: none;            /* Chrome/Safari */
+}
+body {
+  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none;    /* Firefox */
+}
+
+
+</style>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="flex min-h-screen">
+
+
+
+<!-- Main Content Area -->
+<div class="flex-grow flex flex-col p-6 overflow-y-auto custom-scrollbar">
+
+    <!-- Top Header -->
+<header class="flex flex-wrap items-center justify-between mb-8 gap-4">
+        <div class="flex items-center justfy-start space-x-6">
+            <h1 class="text-3xl font-bold">Terminal:</h1>
+<div class="text-3xl font-bold">
+(<span id="current-terminal" ></span>)
+</div>
+
+        </div>
+<div class="flex flex-wrap items-center space-x-2 gap-2">
+
+  <span id="logged-user" class="text-black">Cashier</span>
+
+  <!-- Dropdown with three-dot icon -->
+<div class="dropdown">
+  <button style="color: red;" class="btn btn-secondary btn-sm dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="background:none; border:none; color:white;">
+    <i class="bi bi-three-dots-vertical" style="color: red;"></i>
+  </button>
+
+  <ul class="dropdown-menu dropdown-menu-end dropdown-animate" aria-labelledby="userDropdown">
+    <li>
+      
+      <button class="dropdown-item logout-btn" id="btn-logout">
+        <i class="bi bi-box-arrow-right me-1"></i> Logout
+      </button>
+    </li>
+  </ul>
+</div>
+        </div>
+    </header>
+
+    <!-- Category Section -->
+    
+
+<div class="flex flex-wrap items-center justify-between mb-4 gap-2">
+    
+  <!-- LEFT: Search + Filters -->
+  <div class="flex flex-wrap items-center space-x-2 gap-2">
+    <!-- Search -->
+    <div class="relative">
+      <input
+        id="product-search"
+        type="text"
+        placeholder="Search products (name, SKU, model)…"
+        class="w-full sm:w-64 pl-10 pr-4 py-2 text-sm rounded-full border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#1c82e7]"
+      />
+      <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+    </div>
+
+    <!-- Category Filter -->
+    <select id="filter-category" class="border rounded-full px-3 py-2 text-sm">
+      <option value="">All Categories</option>
+    </select>
+
+    <!-- Brand Filter -->
+    <select id="filter-brand" class="border rounded-full px-3 py-2 text-sm">
+      <option value="">All Brands</option>
+    </select>
+
+    <!-- Unit Filter -->
+    <select id="filter-unit" class="border rounded-full px-3 py-2 text-sm">
+      <option value="">All Units</option>
+    </select>
+  </div>
+
+  <!-- RIGHT: Rows per page + pagination (kept as is, just moved) -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center p-2 bg-white border rounded mb-3">
+    <!-- Showing entries text -->
+    <div id="table-info" class="text-muted small"></div>
+
+    <!-- Right controls: rows per page + pagination -->
+    <div class="d-flex align-items-center gap-3">
+      <!-- Rows per page -->
+      <div class="d-flex align-items-center gap-2">
+        <label for="rows-per-page-footer" class="mb-0 text-muted">Show</label>
+        <select id="rows-per-page-footer" class="form-select form-select-sm w-auto">
+          <option value="5">5</option>
+          <option value="10" selected>10</option>
+          <option value="15">15</option>
+          <option value="25">25</option>
+        </select>
+        <span class="text-muted">entries</span>
+      </div>
+
+      <!-- Pagination -->
+      <nav>
+        <ul id="pagination" class="pagination pagination-sm mb-0"></ul>
+      </nav>
+    </div>
+  </div>
+
+</div>
+
+<!-- Products will be injected here -->
+<div class="products-grid grid gap-4"
+style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));">  
+</div>
+
+
+</div> <!-- end main content -->
+
+
+
+
+<div class="hidden md:flex flex-col gap-4 p-6 w-full sm:w-[350px] md:w-[400px] lg:w-[500px] xl:w-[600px] bg-white shadow-xl rounded-l-xl sticky top-0 h-screen">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <h3 class="text-xl font-bold">Order Menu</h3>
+   </div>
+
+  <!-- Table -->
+  <div class="flex-grow overflow-y-auto">
+<table class="w-full border-collapse table-fixed text-sm">
+      <thead class="bg-gray-100 text-gray-700 text-xs uppercase">
+        <tr>
+          <th class="px-2 py-2 text-left w-[30%]">Product</th>
+          <th class="px-2 py-2 text-center w-[20%]">Qty</th>
+          <th class="px-2 py-2 text-right w-[30%]">Total</th>
+          <th class="px-2 py-2 text-center w-[10%]">Action</th>
+        </tr>
+      </thead>
+      <tbody id="order-table-body">
+        <tr>
+          <td colspan="4" class="text-center text-gray-400 py-6 text-sm">
+            No active order found.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Total + Order Button -->
+  <div class="mt-auto pt-4">
+    <div id="sum" class="text-right font-bold text-xl text-blue-600 mb-5"></div>
+    <button
+      class="w-full py-4 text-white font-bold bg-[#1c82e7] rounded-xl shadow-lg hover:bg-[#1a74d0] transition-colors duration-200"
+      id="order-now-button">
+      Check Out
+    </button>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+    </div>
+        </div>
+        <div class="modal fade" id="payment" role="modal">
+            <div class="modal-dialog modal-md">
+            <div class="modal-content">
+                <div class="modal-header text-white" style="background-color: #1c82e7">
+                <h5 class="modal-title" id="blank-modal-title">Modal Title</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="blank-modal-body">
+                <div class="row" id="blank-main-div" style="padding:5px;"></div>
+                </div>
+                <div class="modal-footer" id="blank-modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm w-100" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

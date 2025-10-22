@@ -1,0 +1,332 @@
+<?php
+header('Content-Type: application/json');
+header("Access-Control-Allow-Origin: *");
+
+class Sales {
+  private $conn;
+
+  function __construct() {
+    include "connection-pdo.php";
+    $this->conn = $conn;
+  }
+
+  // === LIST (latest first) with filters ===
+  function getAllSales() {
+    $staffId = $_GET['staffId']   ?? "";
+    $terminal = $_GET['terminal'] ?? "";
+    $start    = $_GET['startDate']?? "";
+    $end      = $_GET['endDate']  ?? "";
+
+$sql = "SELECT
+    s.transaction_id,
+    s.`date` AS datetime,
+    pt.terminal_name AS terminal,
+    s.total AS total_amount,
+    st.name AS staff_name,
+    st.role,
+    (SELECT COUNT(*) FROM transactionitem ti WHERE ti.transaction_id = s.transaction_id) AS items_count,
+    (
+      SELECT COUNT(*)
+      FROM transactionitem ti
+      LEFT JOIN (
+        SELECT
+          sr.transaction_id,
+          sri.product_id,
+          SUM(sri.qty) AS returned_qty
+        FROM sales_return_items sri
+        JOIN sales_return sr ON sr.return_id = sri.return_id
+        GROUP BY sr.transaction_id, sri.product_id
+      ) r
+        ON r.transaction_id = ti.transaction_id
+       AND r.product_id     = ti.product_id
+      WHERE ti.transaction_id = s.transaction_id
+        AND (ti.quantity - COALESCE(r.returned_qty, 0)) > 0
+    ) AS remaining_items
+  FROM salestransaction s
+  LEFT JOIN staff        st ON s.staff_id    = st.staff_id
+  LEFT JOIN pos_terminal pt ON s.terminal_id = pt.terminal_id
+  WHERE 1=1
+";
+
+
+    if ($staffId !== "") $sql .= " AND s.staff_id = :staffId";
+    if ($terminal !== "") $sql .= " AND pt.terminal_name = :terminal";
+    if ($start !== "" && $end !== "") $sql .= " AND DATE(s.`date`) BETWEEN :start AND :end";
+
+    $sql .= " ORDER BY s.transaction_id DESC";
+
+    $stmt = $this->conn->prepare($sql);
+    if ($staffId !== "") $stmt->bindParam(":staffId", $staffId);
+    if ($terminal !== "") $stmt->bindParam(":terminal", $terminal);
+    if ($start !== "" && $end !== "") {
+      $stmt->bindParam(":start", $start);
+      $stmt->bindParam(":end",   $end);
+    }
+
+    $stmt->execute();
+    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+  }
+
+  // === SINGLE SALE + ITEMS ===
+  function getSale($json) {
+    $json = json_decode($json, true);
+    $id   = $json['salesId'] ?? 0;
+
+    $sql = "SELECT
+              s.transaction_id,
+              s.`date` AS datetime,
+              pt.terminal_name AS terminal,
+              s.total AS total_amount,
+              st.name AS staff_name,
+              st.role
+            FROM salestransaction s
+            LEFT JOIN staff st        ON s.staff_id    = st.staff_id
+            LEFT JOIN pos_terminal pt ON s.terminal_id = pt.terminal_id
+            WHERE s.transaction_id = :id";
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":id", $id);
+    $stmt->execute();
+    $sale = $stmt->fetch(PDO::FETCH_ASSOC);
+
+$sql2 = "SELECT 
+      ti.transaction_id,
+      ti.product_id,
+      ti.quantity,
+      ti.price,
+      p.product_name,
+      COALESCE((
+        SELECT SUM(sri.qty)
+        FROM sales_return_items sri
+        JOIN sales_return sr ON sr.return_id = sri.return_id
+        WHERE sr.transaction_id = ti.transaction_id
+          AND sri.product_id = ti.product_id
+      ), 0) AS returned_qty,
+      (ti.quantity - COALESCE((
+        SELECT SUM(sri.qty)
+        FROM sales_return_items sri
+        JOIN sales_return sr ON sr.return_id = sri.return_id
+        WHERE sr.transaction_id = ti.transaction_id
+          AND sri.product_id = ti.product_id
+      ), 0)) AS remaining_qty
+  FROM transactionitem ti
+  LEFT JOIN product p ON p.product_id = ti.product_id
+  WHERE ti.transaction_id = :id
+";
+
+    $stmt2 = $this->conn->prepare($sql2);
+    $stmt2->bindParam(":id", $id);
+    $stmt2->execute();
+    $items = $stmt2->fetchAll(PDO::FETCH_ASSOC);
+
+    echo json_encode(["sale" => $sale, "items" => $items]);
+  }
+
+  // === SUMMARY CARDS ===
+  // === SUMMARY CARDS (today + totals) ===
+  function getSummary() {
+    // --- Sales today & totals ---
+    $sqlSales = "SELECT
+                   SUM(CASE WHEN DATE(`date`) = CURDATE() THEN total ELSE 0 END) AS today_total,
+                   COUNT(CASE WHEN DATE(`date`) = CURDATE() THEN 1 END)        AS today_transactions,
+                   SUM(total)                                                  AS earned
+                 FROM salestransaction";
+    $stmtSales = $this->conn->prepare($sqlSales);
+    $stmtSales->execute();
+    $sales = $stmtSales->fetch(PDO::FETCH_ASSOC) ?: [
+      "today_total" => 0, "today_transactions" => 0, "earned" => 0
+    ];
+
+    // --- Figure out return-items column names safely ---
+    $qtyCol   = $this->columnExists("sales_return_items","quantity")   ? "quantity"   :
+                ($this->columnExists("sales_return_items","qty")        ? "qty"        : null);
+    $priceCol = $this->columnExists("sales_return_items","unit_price") ? "unit_price" :
+                ($this->columnExists("sales_return_items","price")      ? "price"      : null);
+
+    // If return-items table/columns aren’t present, refunds = 0
+    if (!$qtyCol || !$priceCol) {
+      echo json_encode([
+        "today_total"        => (float)$sales["today_total"],
+        "today_transactions" => (int)$sales["today_transactions"],
+        "earned"             => (float)$sales["earned"],
+        "refunds"            => 0.0,              // all-time refunds
+        "refunds_today"      => 0.0               // today’s refunds (optional)
+      ]);
+      return;
+    }
+
+    // --- Optional date column on header: prefer return_date, then date, else none ---
+    $returnDateCol = $this->columnExists("sales_return","return_date") ? "return_date" :
+                     ($this->columnExists("sales_return","date")       ? "`date`"      : null);
+
+    // --- All-time refunds ---
+    $sqlRefundsTotal = "
+      SELECT COALESCE(SUM(sri.$qtyCol * sri.$priceCol), 0) AS refunds_total
+      FROM sales_return r
+      JOIN sales_return_items sri ON sri.return_id = r.return_id
+    ";
+    $stmtRTotal = $this->conn->prepare($sqlRefundsTotal);
+    $stmtRTotal->execute();
+    $refunds_total = (float)($stmtRTotal->fetch(PDO::FETCH_ASSOC)["refunds_total"] ?? 0);
+
+    // --- Today’s refunds (if we have a date column on sales_return) ---
+    $refunds_today = 0.0;
+    if ($returnDateCol) {
+      $sqlRefundsToday = "
+        SELECT COALESCE(SUM(sri.$qtyCol * sri.$priceCol), 0) AS refunds_today
+        FROM sales_return r
+        JOIN sales_return_items sri ON sri.return_id = r.return_id
+        WHERE DATE(r.$returnDateCol) = CURDATE()
+      ";
+      $stmtRToday = $this->conn->prepare($sqlRefundsToday);
+      $stmtRToday->execute();
+      $refunds_today = (float)($stmtRToday->fetch(PDO::FETCH_ASSOC)["refunds_today"] ?? 0);
+    }
+
+    // For the UI’s “Refunds” card, we’ll expose both and keep `refunds` = total for compatibility
+    echo json_encode([
+      "today_total"        => (float)$sales["today_total"],
+      "today_transactions" => (int)$sales["today_transactions"],
+      "earned"             => (float)$sales["earned"],
+      "refunds"            => $refunds_total,   // ← all-time refunds (default for current UI)
+      "refunds_today"      => $refunds_today    // ← use this in UI if you want “today’s refund”
+    ]);
+  } 
+
+  // === Return flow placeholder (your schema uses sales_return tables; implement later) ===
+  function returnSale($json) {
+    echo json_encode(0); // not supported with current schema (no status col)
+  }
+
+
+private function columnExists($table, $column) {
+  $q = $this->conn->prepare("SHOW COLUMNS FROM `$table` LIKE :col");
+  $q->execute([":col" => $column]);
+  return (bool)$q->fetch(PDO::FETCH_ASSOC);
+}
+
+  // sales.php (append inside class Sales)
+function submitReturn($json) {
+  $data = json_decode($json, true);
+
+  $transaction_id = (int)($data['transaction_id'] ?? 0);
+  $staff_id       = (int)($data['staff_id'] ?? 0);
+  $reason         = trim($data['reason'] ?? '');
+  $items          = $data['items'] ?? []; // [{product_id, qty, price}]
+
+  // Basic validation
+  if ($transaction_id <= 0 || $staff_id <= 0 || empty($items)) {
+    echo json_encode(["status" => "error", "message" => "Invalid payload (transaction_id/staff_id/items)."]);
+    return;
+  }
+
+  try {
+    $this->conn->beginTransaction();
+
+    // Ensure staff exists (preempt the FK error)
+    $chkStaff = $this->conn->prepare("SELECT 1 FROM staff WHERE staff_id = :sid");
+    $chkStaff->execute([":sid" => $staff_id]);
+    if (!$chkStaff->fetchColumn()) {
+      throw new Exception("Staff not found: $staff_id");
+    }
+
+    // Ensure sale exists
+    $chkTxn = $this->conn->prepare("SELECT 1 FROM salestransaction WHERE transaction_id = :tid");
+    $chkTxn->execute([":tid" => $transaction_id]);
+    if (!$chkTxn->fetchColumn()) {
+      throw new Exception("Transaction not found: $transaction_id");
+    }
+
+    // Insert into sales_return (columns are fixed by your schema)
+    $sqlHdr = "INSERT INTO sales_return (transaction_id, staff_id, reason, return_date)
+               VALUES (:tid, :sid, :reason, NOW())";
+    $stmtHdr = $this->conn->prepare($sqlHdr);
+    $stmtHdr->execute([
+      ":tid"    => $transaction_id,
+      ":sid"    => $staff_id,
+      ":reason" => $reason,
+    ]);
+    $return_id = (int)$this->conn->lastInsertId();
+
+    // sales_return_items schema today: qty + refund_amount (INT)
+    // Optionally also handle unit_price if you've added it.
+    $hasUnitPrice = $this->columnExists("sales_return_items", "unit_price");
+
+    if ($hasUnitPrice) {
+      $sqlItm = "INSERT INTO sales_return_items (return_id, product_id, qty, unit_price, refund_amount)
+                 VALUES (:rid, :pid, :qty, :unit_price, :refund_amount)";
+    } else {
+      $sqlItm = "INSERT INTO sales_return_items (return_id, product_id, qty, refund_amount)
+                 VALUES (:rid, :pid, :qty, :refund_amount)";
+    }
+    $stmtItm = $this->conn->prepare($sqlItm);
+
+    foreach ($items as $it) {
+      $pid   = (int)($it['product_id'] ?? 0);
+      $qty   = (int)($it['qty'] ?? 0);
+      $price = (float)($it['price'] ?? 0); // unit price from the original sale
+
+      if ($pid <= 0 || $qty <= 0) continue;
+
+      // Validate the product was part of this sale and qty does not exceed sold qty
+      $chk = $this->conn->prepare("
+        SELECT quantity, price
+          FROM transactionitem
+         WHERE transaction_id = :tid AND product_id = :pid
+        LIMIT 1
+      ");
+      $chk->execute([":tid" => $transaction_id, ":pid" => $pid]);
+      $row = $chk->fetch(PDO::FETCH_ASSOC);
+      if (!$row) throw new Exception("Product $pid not found in original sale.");
+
+      $soldQty = (int)$row['quantity'];
+      if ($qty > $soldQty) {
+        throw new Exception("Return quantity exceeds sold quantity for product $pid.");
+      }
+
+      // Compute refund amount. Your column is INT, so it will truncate decimals.
+      // If you add DECIMAL later, this will still work and store precise values.
+      $refund = $qty * ($price > 0 ? $price : (float)$row['price']);
+
+      $params = [
+        ":rid"           => $return_id,
+        ":pid"           => $pid,
+        ":qty"           => $qty,
+        ":refund_amount" => $refund, // INT column will coerce; better make it DECIMAL (see SQL below)
+      ];
+      if ($hasUnitPrice) {
+        $params[":unit_price"] = ($price > 0 ? $price : (float)$row['price']);
+      }
+
+      $stmtItm->execute($params);
+    }
+
+    $this->conn->commit();
+    echo json_encode(["status" => "ok", "return_id" => $return_id]);
+  } catch (Exception $e) {
+    $this->conn->rollBack();
+    echo json_encode(["status" => "error", "message" => $e->getMessage()]);
+  }
+}
+
+}
+
+// Router
+if ($_SERVER['REQUEST_METHOD'] == 'GET') {
+  $operation = $_GET['operation'] ?? "";
+  $json = $_GET['json'] ?? "";
+} else {
+  $operation = $_POST['operation'] ?? "";
+  $json = $_POST['json'] ?? "";
+}
+
+$sales = new Sales();
+switch ($operation) {
+  case "getAllSales": $sales->getAllSales(); break;
+  case "getSale":     $sales->getSale($json); break;
+  case "returnSale":  $sales->returnSale($json); break; // placeholder
+  case "getSummary":  $sales->getSummary(); break;
+  // Router switch(...)
+case "submitReturn": $sales->submitReturn($json); break;
+
+  default: echo json_encode([]); break;
+}
